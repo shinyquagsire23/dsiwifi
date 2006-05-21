@@ -125,6 +125,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 # main targets
 #---------------------------------------------------------------------------------
 $(ARM7BIN)	:	$(OFILES)
+	@rm -f "$(ARM7BIN)"
 	@$(AR) rcs "$(ARM7BIN)" $(OFILES)
 	@echo built ... $(notdir $@)
 

@@ -130,6 +130,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 # main targets
 #---------------------------------------------------------------------------------
 $(ARM9BIN)	:	$(OFILES)
+	@rm -f "$(ARM9BIN)"
 	@$(AR) rcs "$(ARM9BIN)" $(OFILES)
 	@echo built ... $(notdir $@)
 
