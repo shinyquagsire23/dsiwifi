@@ -1,6 +1,6 @@
-#---------------------------------------------------------------------------------
-.SUFFIXES:
-#---------------------------------------------------------------------------------
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro)
+endif
  
 export TOPDIR	:=	$(CURDIR)
  
@@ -32,3 +32,5 @@ dist-bin: all
 
 dist: dist-bin dist-src
 
+install: dist-bin
+	bzip2 -cd dswifi-$(DATESTRING).tar.bz2 | tar -xv -C $(DEVKITPRO)/libnds
