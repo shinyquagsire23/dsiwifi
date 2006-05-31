@@ -48,6 +48,9 @@ struct sockaddr_in {
 extern "C" {
 #endif
 
+	// actually from arpa/inet.h - but is included through netinet/in.h
+	extern unsigned long inet_addr(const char *cp);
+
 
 #ifdef __cplusplus
 };

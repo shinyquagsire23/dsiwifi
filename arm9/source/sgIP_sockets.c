@@ -255,6 +255,7 @@ int shutdown(int socket, int shutdown_type) {
    int retval=SGIP_ERROR(EINVAL);
    socket--;
    if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+	   retval=sgIP_TCP_Close((sgIP_Record_TCP *)socketlist[socket].conn_ptr);
    }
    SGIP_INTR_UNPROTECT();
    return retval;

@@ -64,6 +64,7 @@ typedef struct SGIP_HEADER_TCP {
 	unsigned char options[4];
 } sgIP_Header_TCP;
 
+
 // sgIP_Record_TCP - a TCP record, to store data for an active TCP connection.
 typedef struct SGIP_RECORD_TCP {
 	struct SGIP_RECORD_TCP * next; // operate as a linked list
@@ -75,6 +76,7 @@ typedef struct SGIP_RECORD_TCP {
 	unsigned long rxwindow; // sequence of last byte in receive window
 	unsigned long txwindow; // sequence of last byte allowed to send
    int time_last_action; // used for retransmission and etc.
+   int time_backoff;
    int retrycount;
 	unsigned long srcip;
 	unsigned long destip;
@@ -82,6 +84,7 @@ typedef struct SGIP_RECORD_TCP {
 	struct SGIP_RECORD_TCP ** listendata;
 	int maxlisten;
    int errorcode;
+   int want_shutdown; // 0= don't want shutdown, 1= want shutdown, 2= being shutdown
 	// TCP buffer information:
 	int buf_rx_in, buf_rx_out;
 	int buf_tx_in, buf_tx_out;
@@ -90,6 +93,14 @@ typedef struct SGIP_RECORD_TCP {
 	unsigned char buf_tx[SGIP_TCP_TRANSMITBUFFERLENGTH];
 	unsigned char buf_oob[SGIP_TCP_OOBBUFFERLENGTH];
 } sgIP_Record_TCP;
+
+typedef struct SGIP_TCP_SYNCOOKIE {
+	unsigned long localseq, remoteseq;
+	unsigned long localip, remoteip;
+	unsigned short localport, remoteport;
+	unsigned long timenext,timebackoff; 
+	sgIP_Record_TCP * linked; // parent listening connection
+} sgIP_TCP_SYNCookie;
 
 
 

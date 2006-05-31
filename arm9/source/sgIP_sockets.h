@@ -48,6 +48,7 @@ extern "C" {
 
 	extern void sgIP_sockets_Init();
 
+	// sys/socket.h
 	extern int socket(int domain, int type, int protocol);
 	extern int bind(int socket, const struct sockaddr * addr, int addr_len);
 	extern int connect(int socket, const struct sockaddr * addr, int addr_len);
@@ -68,8 +69,11 @@ extern "C" {
 	extern int getpeername(int socket, struct sockaddr *addr, int * addr_len);
 	extern int getsockname(int socket, struct sockaddr *addr, int * addr_len);
 
+	// sys/time.h (actually intersects partly with libnds, so I'm letting libnds handle fd_set for the time being)
 	extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
 
+	// arpa/inet.h
+	extern unsigned long inet_addr(const char *cp);
 
 #ifdef __cplusplus
 };

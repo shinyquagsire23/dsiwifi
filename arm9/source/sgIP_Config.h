@@ -146,8 +146,12 @@ SOFTWARE.
 #define SGIP_TCP_TRANSMIT_DELAY              25
 #define SGIP_TCP_TRANSMIT_IMMTHRESH          500
 #define SGIP_TCP_TIMEMS_2MSL                 1000*60*2
-#define SGIP_TCP_MAXRETRY                    5
+#define SGIP_TCP_MAXRETRY                    7
 #define SGIP_TCP_MAXSYNS                     64
+
+#define SGIP_TCP_SYNRETRYMS						250
+#define SGIP_TCP_GENRETRYMS						500
+#define SGIP_TCP_BACKOFFMAX						6000
 
 #define SGIP_SOCKET_MAXSOCKETS					32
 
