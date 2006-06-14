@@ -238,7 +238,7 @@ int sgIP_TCP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
 int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned long destip) {
 	if(!mb) return 0;
 	sgIP_Header_TCP * tcp;
-   int delta1,delta2,datalen, shouldReply;
+   int delta1,delta2, delta3,datalen, shouldReply;
    unsigned long tcpack,tcpseq;
 	tcp = (sgIP_Header_TCP *) mb->datastart;
 	//                   01234567890123456789012345678901
@@ -367,9 +367,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 	case SGIP_TCP_STATE_FIN_WAIT_2: // got ACK for our FIN, haven't got FIN yet.
 		if(tcp->tcpflags&SGIP_TCP_FLAG_ACK) {
 			// check end of incoming data against receive window
-			delta1=(int)(tcpseq+datalen-rec->ack);
-			delta2=(int)(rec->rxwindow-tcpseq-datalen);
-			if(delta1<0 || delta2<0) break; // out of range, they should know better.
+			delta1=(int)(tcpseq+datalen-rec->ack); // check end of data vs start of window (>=0, end of data is equal to or after start of unreceived data)
+			delta2=(int)(rec->rxwindow-tcpseq-datalen); // check end of data vs end of window (>=0, end of data is equal to or before end of rx window)
+			delta3=(int)(rec->ack-tcpseq); // check start of data vs start of window (>=0, start of data is equal or before the next expected byte)
+			if(delta1<0 || delta2<0 || delta3<0) break; // out of range, they should know better.
 			{
 				int datastart=(tcp->dataofs_>>4)*4;
 				delta1=(int)(tcpseq-rec->ack);

@@ -111,6 +111,7 @@ int sgIP_DNS_isipaddress(const char * name, unsigned long * ipdest) {
 			}
 			j++; c++;
 		}
+		if(*c) c++; else break;
 	}
 	out_addr=0;
 	switch(ndot) {
@@ -130,7 +131,7 @@ int sgIP_DNS_isipaddress(const char * name, unsigned long * ipdest) {
 		out_addr= (g[0]<<24) | (g[1]<<16) | (g[2]<<8) | g[3];
 		break;
 	}
-	*ipdest=out_addr;
+	*ipdest=htonl(out_addr);
 	return 1;
 }
 

@@ -250,7 +250,7 @@ int sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_lengt
 int sgIP_memblock_CopyToLinear(sgIP_memblock * mb, void * dest_buf, int startbyte, int copy_length) {
 	int copylen,ofs_src, tot_copy;
 	ofs_src=startbyte;
-	while(mb && ofs_src>mb->thislength) { ofs_src-=mb->thislength; mb=mb->next; }
+	while(mb && ofs_src>=mb->thislength) { ofs_src-=mb->thislength; mb=mb->next; }
 	if(!mb) return 0;
 	if(startbyte+copy_length>mb->totallength) copy_length=mb->totallength-startbyte;
 	if(copy_length<0) copy_length=0;
@@ -270,7 +270,7 @@ int sgIP_memblock_CopyToLinear(sgIP_memblock * mb, void * dest_buf, int startbyt
 int sgIP_memblock_CopyFromLinear(sgIP_memblock * mb, void * src_buf, int startbyte, int copy_length) {
 	int copylen,ofs_src, tot_copy;
 	ofs_src=startbyte;
-	while(mb && ofs_src>mb->thislength) { ofs_src-=mb->thislength; mb=mb->next; }
+	while(mb && ofs_src>=mb->thislength) { ofs_src-=mb->thislength; mb=mb->next; }
 	if(!mb) return 0;
 	if(startbyte+copy_length>mb->totallength) copy_length=mb->totallength-startbyte;
 	if(copy_length<0) copy_length=0;
