@@ -370,7 +370,12 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 			delta1=(int)(tcpseq+datalen-rec->ack); // check end of data vs start of window (>=0, end of data is equal to or after start of unreceived data)
 			delta2=(int)(rec->rxwindow-tcpseq-datalen); // check end of data vs end of window (>=0, end of data is equal to or before end of rx window)
 			delta3=(int)(rec->ack-tcpseq); // check start of data vs start of window (>=0, start of data is equal or before the next expected byte)
-			if(delta1<0 || delta2<0 || delta3<0) break; // out of range, they should know better.
+			if(delta1<0 || delta2<0 || delta3<0) {
+				if(delta1>-SGIP_TCP_RECEIVEBUFFERLENGTH) { // ack it anyway, they got lost on the retard bus.
+					sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0);
+				}
+				break; // out of range, they should know better.
+			}
 			{
 				int datastart=(tcp->dataofs_>>4)*4;
 				delta1=(int)(tcpseq-rec->ack);
