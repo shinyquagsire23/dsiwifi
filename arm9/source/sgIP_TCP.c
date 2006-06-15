@@ -391,7 +391,7 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 					if(rec->buf_rx_out>=SGIP_TCP_RECEIVEBUFFERLENGTH) rec->buf_rx_out-=SGIP_TCP_RECEIVEBUFFERLENGTH;
 				}
 				if(rec->tcpstate==SGIP_TCP_STATE_FIN_WAIT_1 || rec->tcpstate==SGIP_TCP_STATE_FIN_WAIT_2) break;
-				if(shouldReply || delta1>0) { // send a packet in reply, ha!
+				if(shouldReply || delta1>=0) { // send a packet in reply, ha!
 					delta1=rec->buf_tx_out-rec->buf_tx_in;
 					if(delta1<0) delta1+=SGIP_TCP_TRANSMITBUFFERLENGTH;
 					delta2=(int)(rec->txwindow-rec->sequence);
