@@ -400,6 +400,18 @@ int Wifi_AssocStatus() {
 				}
 				break;
 			case WIFIMODE_ASSOCIATED:
+#ifdef WIFI_USE_TCP_SGIP
+				if(wifi_hw) {
+					if(!(wifi_hw->ipaddr)) {
+						sgIP_DHCP_Start(wifi_hw,wifi_hw->dns[0]==0);
+						wifi_connect_state=2;
+						return ASSOCSTATUS_ACQUIRINGDHCP;
+					}
+				}
+				sgIP_ARP_SendGratARP(wifi_hw);
+#endif
+				wifi_connect_state=3;
+				WifiData->flags9|=WFLAG_ARM9_NETREADY;
 				return ASSOCSTATUS_ASSOCIATED;
 			case WIFIMODE_CANNOTASSOCIATE:
 				return ASSOCSTATUS_CANNOTCONNECT;

@@ -43,7 +43,11 @@ SOFTWARE.
 #define SOCK_STREAM		1
 #define SOCK_DGRAM		2
 
+// need to sync FIO* values with commonly accepted ones sometime
 #define FIONBIO			1
+#define FIONREAD		2
+
+#define SOCKET_ERROR	-1
 
 // send()/recv()/etc flags
 // at present, only MSG_PEEK is implemented though.

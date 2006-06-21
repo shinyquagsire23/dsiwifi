@@ -129,10 +129,23 @@ int connect(int socket, const struct sockaddr * addr, int addr_len) {
    if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return SGIP_ERROR(EINVAL);
    if(addr_len!=sizeof(struct sockaddr_in)) return SGIP_ERROR(EINVAL);
    SGIP_INTR_PROTECT();
+   int i;
    int retval=SGIP_ERROR(EINVAL);
    socket--;
    if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
       retval=sgIP_TCP_Connect((sgIP_Record_TCP *)socketlist[socket].conn_ptr,((struct sockaddr_in *)addr)->sin_addr.s_addr,((struct sockaddr_in *)addr)->sin_port);
+	  if(retval==0) {
+		do {
+			i=((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->tcpstate;
+			if(i==SGIP_TCP_STATE_ESTABLISHED || i==SGIP_TCP_STATE_CLOSE_WAIT) {retval=0; break;}
+			if(i==SGIP_TCP_STATE_CLOSED || i==SGIP_TCP_STATE_UNUSED || i==SGIP_TCP_STATE_LISTEN || i==SGIP_TCP_STATE_NODATA) 
+			{	retval=SGIP_ERROR(((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->errorcode); break; }
+			if(socketlist[socket].flags&SGIP_SOCKET_FLAG_NONBLOCKING) break;
+			SGIP_INTR_UNPROTECT();
+			SGIP_WAITEVENT();
+			SGIP_INTR_REPROTECT();
+		} while(1);
+	  }
    }
    SGIP_INTR_UNPROTECT();
    return retval;
@@ -264,7 +277,7 @@ int shutdown(int socket, int shutdown_type) {
 int ioctl(int socket, long cmd, void * arg) {
 	if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return SGIP_ERROR(EBADF);
 	socket--;
-	int retval;
+	int retval,i;
 	retval=0;
 	SGIP_INTR_PROTECT();
 	switch(cmd) {
@@ -276,7 +289,18 @@ int ioctl(int socket, long cmd, void * arg) {
 			if(*((unsigned long *)arg)) socketlist[socket].flags |= SGIP_SOCKET_FLAG_NONBLOCKING;
 		}
 		break;
-
+	case FIONREAD:
+		if(!arg) {
+			retval=SGIP_ERROR(EINVAL);
+		} else {
+			if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+				i=((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->buf_rx_out-((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->buf_rx_in;
+				if(i<0) i+=SGIP_TCP_RECEIVEBUFFERLENGTH;
+				*((int *)arg)=i;
+			} else {
+				retval=SGIP_ERROR(EINVAL);
+			}
+		}
 	}
 	SGIP_INTR_UNPROTECT();
 	return retval;
