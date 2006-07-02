@@ -373,12 +373,14 @@ struct hostent * gethostbyname(const char * name) {
    return (struct hostent *)sgIP_DNS_gethostbyname(name);
 };
 
-/*
+
 extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout) {
 	// 31 days = 2678400 seconds
 	unsigned long timeout_ms, lasttime, temp;
+	sgIP_Record_TCP * rec;
+	sgIP_Record_UDP * urec;
 	lasttime=sgIP_timems;
-	if(!timeout_ms) timeout_ms=(unsigned long)2678400000;
+	if(!timeout) timeout_ms=(unsigned long)2678400000;
 	else {
 		if(timeout->tv_sec>=2678400) {
 			timeout_ms=(unsigned long)2678400000;
@@ -389,17 +391,37 @@ extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
 	SGIP_INTR_PROTECT();
 	nfds=SGIP_SOCKET_MAXSOCKETS;
 
-	int i;
+	int i,j,retval;
 	while(timeout_ms>0) { // check all fd sets
 		// readfds
-		for(i=0;i<nfds;i++) {
-			if(FD_ISSET(i+1,readfds)) {
-				
+		if(readfds) {
+			for(i=0;i<nfds;i++) {
+				if(FD_ISSET(i+1,readfds)) {
+					if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+						rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
+						if(rec->buf_rx_in!=rec->buf_rx_out) { timeout_ms=0; break; }
+					} else if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_UDP) {
+						urec = (sgIP_Record_UDP *)socketlist[i].conn_ptr;
+						if(urec->incoming_queue) { timeout_ms=0; break;	}
+					}
+				}
 			}
+			if(timeout_ms==0) break;
 		}
-
-		// writefds
-
+		if(writefds) {
+			// writefds
+			for(i=0;i<nfds;i++) {
+				if(FD_ISSET(i+1,writefds)) {
+					if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+						rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
+						j=rec->buf_tx_in-1;
+						if(j<0) j=SGIP_TCP_TRANSMITBUFFERLENGTH-1;
+						if(rec->buf_tx_in!=j) { timeout_ms=0; break; }
+					}
+				}
+			}
+			if(timeout_ms==0) break;
+		}
 		// errorfds
 		// ignore errorfds for now.
 
@@ -411,14 +433,42 @@ extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
 		SGIP_INTR_REPROTECT();
 	}
 	// markup fd sets and return
+	// readfds
+	retval=0;
+	if(readfds) {
+		for(i=0;i<nfds;i++) {
+			if(FD_ISSET(i+1,readfds)) {
+				if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+					rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
+					if(rec->buf_rx_in==rec->buf_rx_out) { FD_CLR(i+1,readfds);} else retval++;
+				} else if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_UDP) {
+					urec = (sgIP_Record_UDP *)socketlist[i].conn_ptr;
+					if(!urec->incoming_queue) { FD_CLR(i+1,readfds);} else retval++;
+				}
+			}
+		}
+	}
 
+	// writefds
+	if(writefds) {
+		for(i=0;i<nfds;i++) {
+			if(FD_ISSET(i+1,writefds)) {
+				if((socketlist[i].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
+					rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
+					j=rec->buf_tx_in-1;
+					if(j<0) j=SGIP_TCP_TRANSMITBUFFERLENGTH-1;
+					if(rec->buf_tx_in==j) { FD_CLR(i+1,writefds); } else retval++;
+				}
+			}
+		}
+	}
 
-	FD_ZERO(errorfds);
+	if(errorfds) { FD_ZERO(errorfds); }
 
 	SGIP_INTR_UNPROTECT();
-
+	return retval;
 }
-*/
+
 
 /*
 extern void FD_CLR(int fd, fd_set * fdset) {
