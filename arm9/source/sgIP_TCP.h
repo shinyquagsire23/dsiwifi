@@ -85,6 +85,7 @@ typedef struct SGIP_RECORD_TCP {
 	int maxlisten;
    int errorcode;
    int want_shutdown; // 0= don't want shutdown, 1= want shutdown, 2= being shutdown
+   int want_reack;
 	// TCP buffer information:
 	int buf_rx_in, buf_rx_out;
 	int buf_tx_in, buf_tx_out;

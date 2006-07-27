@@ -86,7 +86,7 @@ int ReadFlashHWord(int address) {
 //
 // WFC data loading
 //
-
+/*
 int crc16_slow(u8 * data, int length) {
    int i,j,d, crc;
    crc=0x0000;
@@ -99,6 +99,19 @@ int crc16_slow(u8 * data, int length) {
    }
    crc &=0xFFFF;
    return crc;
+}
+*/
+int crc16_slow(u8 * data, int length) {
+    int i,j, crc;
+    crc=0x0000;
+    for(i=0;i<length;i++) {
+        crc ^=data[i];
+        for(j=0;j<8;j++) {
+            if((crc)&1) crc = (crc>>1)^0xA001; else crc=crc>>1;
+        }
+    }
+    crc &=0xFFFF;
+    return crc;
 }
 
 void GetWfcSettings() {

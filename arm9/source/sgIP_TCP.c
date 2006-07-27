@@ -26,6 +26,7 @@ SOFTWARE.
 #include "sgIP_TCP.h"
 #include "sgIP_IP.h"
 #include "sgIP_Hub.h"
+#include "sys/socket.h"
 
 sgIP_Record_TCP * tcprecords;
 int port_counter;
@@ -591,6 +592,7 @@ sgIP_memblock * sgIP_TCP_GenHeader(sgIP_Record_TCP * rec, int flags, int datalen
 	if(windowlen<0) windowlen+=SGIP_TCP_RECEIVEBUFFERLENGTH; // we now have the amount in the buffer
 	windowlen = SGIP_TCP_RECEIVEBUFFERLENGTH-windowlen-1;
 	if(windowlen<0) windowlen=0;
+    if(flags&SGIP_TCP_FLAG_ACK) rec->want_reack = windowlen<SGIP_TCP_REACK_THRESH; // indicate an additional ack should be sent when we have more space in the buffer.
 	if(windowlen>65535) windowlen=65535;
    if(windowlen>1400) windowlen=1400; // don't want to deal with IP fragmentation.
    rec->rxwindow=rec->ack+windowlen; // last byte in receive window
@@ -704,6 +706,7 @@ sgIP_Record_TCP * sgIP_TCP_AllocRecord() {
       rec->errorcode=0;
       rec->listendata=0;
 	  rec->want_shutdown=0;
+      rec->want_reack=0;
 	}
 	SGIP_INTR_UNPROTECT();
 	return rec;
@@ -892,8 +895,21 @@ int sgIP_TCP_Recv(sgIP_Record_TCP * rec, char * databuf, int buflength, int flag
 		databuf[i]=rec->buf_rx[j++];
 		if(j==SGIP_TCP_RECEIVEBUFFERLENGTH) j=0;
 	}
-	rec->buf_rx_in=j;
 
+    if(!(flags&MSG_PEEK)) {
+	    rec->buf_rx_in=j;
+
+        if(rec->want_reack) {
+            i=rec->buf_rx_out-rec->buf_rx_in;
+            if(i<0) i+=SGIP_TCP_RECEIVEBUFFERLENGTH; // we now have the amount in the buffer
+            i = SGIP_TCP_RECEIVEBUFFERLENGTH-i-1;
+            if(i<0) i=0;
+            if(i>SGIP_TCP_REACK_THRESH) {
+                rec->want_reack=0;
+                sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0);
+            }
+        }
+    }
 	SGIP_INTR_UNPROTECT();
 	return buflength;
 }

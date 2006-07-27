@@ -148,6 +148,7 @@ SOFTWARE.
 #define SGIP_TCP_TIMEMS_2MSL                 1000*60*2
 #define SGIP_TCP_MAXRETRY                    7
 #define SGIP_TCP_MAXSYNS                     64
+#define SGIP_TCP_REACK_THRESH                   1000
 
 #define SGIP_TCP_SYNRETRYMS						250
 #define SGIP_TCP_GENRETRYMS						500
