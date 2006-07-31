@@ -4,7 +4,7 @@ endif
  
 export TOPDIR	:=	$(CURDIR)
  
-DATESTRING	:=	$(shell date +%Y)$(shell date +%m)$(shell date +%d)
+VERSION	:=	$(shell date +%Y)$(shell date +%m)$(shell date +%d)
  
  
 all: release debug
@@ -25,12 +25,12 @@ clean:
 	make -C arm7 clean
 
 dist-src: clean
-	@tar --exclude=*CVS* -cvjf dswifi-src-$(DATESTRING).tar.bz2 arm7 arm9 common include makefile 
+	@tar --exclude=*CVS* -cvjf dswifi-src-$(VERSION).tar.bz2 arm7 arm9 common include makefile 
 
 dist-bin: all
-	@tar --exclude=*CVS* -cvjf dswifi-$(DATESTRING).tar.bz2 include lib
+	@tar --exclude=*CVS* -cvjf dswifi-$(VERSION).tar.bz2 include lib
 
 dist: dist-bin dist-src
 
 install: dist-bin
-	bzip2 -cd dswifi-$(DATESTRING).tar.bz2 | tar -xv -C $(DEVKITPRO)/libnds
+	bzip2 -cd dswifi-$(VERSION).tar.bz2 | tar -xv -C $(DEVKITPRO)/libnds
