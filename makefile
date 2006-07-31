@@ -4,7 +4,7 @@ endif
  
 export TOPDIR	:=	$(CURDIR)
  
-VERSION	:=	$(shell date +%Y)$(shell date +%m)$(shell date +%d)
+VERSION	:=	0.3a
  
  
 all: release debug
