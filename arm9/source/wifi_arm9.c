@@ -30,7 +30,7 @@ SOFTWARE.
 
 #include "wifi_arm9.h"
 #include <stdarg.h>
-
+#include <stdlib.h>
 
 #ifdef WIFI_USE_TCP_SGIP
 
@@ -58,6 +58,14 @@ void sgIP_IntrWaitEvent() {
 		j+=i;
 	}
 }
+
+void * sgIP_malloc(int size) __attribute__((weak));
+void sgIP_free(void * ptr) __attribute__((weak));
+void sgIP_dbgprint(char * txt, ...) __attribute__((weak));
+
+void * sgIP_malloc(int size) { return malloc(size); }
+void sgIP_free(void * ptr) { free(ptr); }
+void sgIP_dbgprint(char * txt, ...) {}
 
 #endif
 
@@ -653,6 +661,7 @@ void Wifi_Update() {
 			WifiData->flags9 |=WFLAG_ARM9_ARM7READY;
 			// add network interface.
 			wifi_hw = sgIP_Hub_AddHardwareInterface(&Wifi_TransmitFunction,&Wifi_Interface_Init);
+            sgIP_timems=WifiData->random; //hacky! but it should work just fine :)
 		}
 	}
 	if(WifiData->authlevel!=WIFI_AUTHLEVEL_ASSOCIATED && WifiData->flags9&WFLAG_ARM9_NETUP) {

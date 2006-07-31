@@ -699,6 +699,7 @@ void Wifi_Update() {
 				}
             WifiData->txbufIn=WifiData->txbufOut; // empty tx buffer.
 				WifiData->curReqFlags |= WFLAG_REQ_APCONNECT;
+                WifiData->counter7=WIFI_REG(0xFA); // timer hword 2 (each tick is 65.5ms)
 				WifiData->curMode=WIFIMODE_ASSOCIATE;
 				WifiData->authctr=0;
 			}
@@ -1143,24 +1144,27 @@ int Wifi_SendSharedKeyAuthPacket() {
 	return Wifi_TxQueue((u16 *)data, i+6);
 }
 
-int Wifi_SendSharedKeyAuthPacket2(u8 * challenge_Text) {
+int Wifi_SendSharedKeyAuthPacket2(int challenge_length, u8 * challenge_Text) {
 	// max size is 12+24+4+6 = 46
-	u8 data[256];
+	u8 data[320];
 	int i,j;
 	i=Wifi_GenMgtHeader(data,0x40B0);
 
 	((u16 *)(data+i))[0]=1; // Authentication algorithm number (1=shared key)
 	((u16 *)(data+i))[1]=3; // Authentication sequence number
 	((u16 *)(data+i))[2]=0; // Authentication status code (reserved for this message, =0)
-	for(j=0;j<64;j++) {
-		((u16 *)(data+i))[2+j] = ((u16 *)challenge_Text)[j];
+
+    data[i+6]=0x10; // 16=challenge text block
+    data[i+7]=challenge_length;
+
+	for(j=0;j<challenge_length;j++) {
+		data[i+j+8]=challenge_Text[j];
 	}
 
-
 	((u16 *)data)[4]=0x000A;
-	((u16 *)data)[5]=i+6+128-12+4;
+	((u16 *)data)[5]=i+8+challenge_length-12+4 +4;
 
-	return Wifi_TxQueue((u16 *)data, i+6+128);
+	return Wifi_TxQueue((u16 *)data, i+8+challenge_length);
 }
 
 
@@ -1172,9 +1176,9 @@ int Wifi_SendAssocPacket() { // uses arm7 data in our struct
 	i=Wifi_GenMgtHeader(data,0x0000);
 
 	if(WifiData->wepmode7) {
-		((u16 *)(data+i))[0]=0x0011; // CAPS info
+		((u16 *)(data+i))[0]=0x0031; // CAPS info
 	} else {
-		((u16 *)(data+i))[0]=0x0001; // CAPS info
+		((u16 *)(data+i))[0]=0x0021; // CAPS info
 	}
 	
 	((u16 *)(data+i))[1]=WIFI_REG(0x8E); // Listen interval
@@ -1254,6 +1258,7 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 	switch((control_802>>2)&0x3F) {
 		// Management Frames
 		case 0x20: // 1000 00 Beacon
+        case 0x14: // 0101 00 Probe Response // process probe responses too.
 			// mine data from the beacon...
 			{
 				u8 data[512];
@@ -1416,6 +1421,7 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 					}
 				}
 			}
+            if(((control_802>>2)&0x3F)==0x14) return WFLAG_PACKET_MGT;
 			return WFLAG_PACKET_BEACON;
 		case 0x04: // 0001 00 Assoc Response
 		case 0x0C: // 0011 00 Reassoc Response
@@ -1458,7 +1464,6 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 		case 0x00: // 0000 00 Assoc Request  
 		case 0x08: // 0010 00 Reassoc Request
 		case 0x10: // 0100 00 Probe Request
-		case 0x14: // 0101 00 Probe Response
 		case 0x24: // 1001 00 ATIM
 		case 0x28: // 1010 00 Disassociation
 			return WFLAG_PACKET_MGT;
@@ -1466,20 +1471,47 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 			// check auth response to ensure we're in
 			{
 				int datalen;
-				u8 data[64];
+				u8 data[384];
 				datalen=packetheader.byteLength;
-				if(datalen>64) datalen=64;
+				if(datalen>384) datalen=384;
 				Wifi_MACCopy((u16 *)data,macbase,12,(datalen+1)&~1);
 
 				if(Wifi_CmpMacAddr(data+4,WifiData->MacAddr)) { // packet is indeed sent to us.
 					if(Wifi_CmpMacAddr(data+16,WifiData->bssid7)) { // packet is indeed from the base station we're trying to associate to.
-						if(((u16 *)(data+24))[0]==0 && ((u16 *)(data+24))[1]==2 && ( ((u16 *)(data+24))[2]==0)) { // a good response
-							if(WifiData->authlevel==WIFI_AUTHLEVEL_DISCONNECTED) {
-								WifiData->authlevel=WIFI_AUTHLEVEL_AUTHENTICATED;
-								WifiData->authctr=0;
-								Wifi_SendAssocPacket();
-							}
-						}
+                        if(((u16 *)(data+24))[0]==0) { // open system auth
+                            if(((u16 *)(data+24))[1]==2) { // seq 2, should be final sequence
+                                if(((u16 *)(data+24))[2]==0) { // status code: successful
+							        if(WifiData->authlevel==WIFI_AUTHLEVEL_DISCONNECTED) {
+								        WifiData->authlevel=WIFI_AUTHLEVEL_AUTHENTICATED;
+								        WifiData->authctr=0;
+								        Wifi_SendAssocPacket();
+							        }
+                                } else { // status code: rejected, try something else
+                                    Wifi_SendSharedKeyAuthPacket();
+                                }
+                            }
+                        } else if(((u16 *)(data+24))[0]==1) { // shared key auth
+                            if(((u16 *)(data+24))[1]==2) { // seq 2, challenge text
+                                if(((u16 *)(data+24))[2]==0) { // status code: successful
+                                    // scrape challenge text and send challenge reply
+                                    if(data[24+6]==0x10) { // 16 = challenge text - this value must be 0x10 or else!
+                                        Wifi_SendSharedKeyAuthPacket2(data[24+7],data+24+8);                                        
+                                    }
+                                } else { // rejected, just give up.
+                                    WifiData->curMode=WIFIMODE_CANNOTASSOCIATE;
+                                }
+                            } else if(((u16 *)(data+24))[1]==4) { // seq 4, accept/deny
+                                if(((u16 *)(data+24))[2]==0) { // status code: successful
+                                    if(WifiData->authlevel==WIFI_AUTHLEVEL_DISCONNECTED) {
+                                        WifiData->authlevel=WIFI_AUTHLEVEL_AUTHENTICATED;
+                                        WifiData->authctr=0;
+                                        Wifi_SendAssocPacket();
+                                    }
+                                } else { // status code: rejected. Cry in the corner.
+                                    WifiData->curMode=WIFIMODE_CANNOTASSOCIATE;
+                                }
+                            }
+                        }
 					}
 				}
 			}
