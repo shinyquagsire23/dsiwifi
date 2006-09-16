@@ -433,7 +433,7 @@ void Wifi_MACWrite(u16 * src, u32 MAC_Base, u32 MAC_Offset, u32 length) {
 	}
 }
 int Wifi_QueueRxMacData(u32 base, u32 len) {
-	int buflen, temp,macofs;
+	int buflen, temp,macofs, tempout;
 	macofs=0;
 	buflen=(WifiData->rxbufIn-WifiData->rxbufOut-1)*2;
 	if(buflen<0) buflen += WIFI_RXBUFFER_SIZE;
@@ -441,15 +441,17 @@ int Wifi_QueueRxMacData(u32 base, u32 len) {
 	WifiData->stats[WSTAT_RXQUEUEDPACKETS]++;
 	WifiData->stats[WSTAT_RXQUEUEDBYTES]+=len;
 	temp=WIFI_RXBUFFER_SIZE-(WifiData->rxbufOut*2);
+    tempout=WifiData->rxbufOut;
 	if(len>temp) {
-		Wifi_MACCopy(WifiData->rxbufData+WifiData->rxbufOut,base,macofs,temp);
+		Wifi_MACCopy(WifiData->rxbufData+tempout,base,macofs,temp);
 		macofs+=temp;
 		len-=temp;
-		WifiData->rxbufOut=0;
+		tempout=0;
 	}
-	Wifi_MACCopy(WifiData->rxbufData+WifiData->rxbufOut,base,macofs,len);
-	WifiData->rxbufOut+=len/2;
-	if(WifiData->rxbufOut>=(WIFI_RXBUFFER_SIZE/2)) WifiData->rxbufOut-=(WIFI_RXBUFFER_SIZE/2);
+	Wifi_MACCopy(WifiData->rxbufData+tempout,base,macofs,len);
+	tempout+=len/2;
+	if(tempout>=(WIFI_RXBUFFER_SIZE/2)) tempout-=(WIFI_RXBUFFER_SIZE/2);
+    WifiData->rxbufOut=tempout;
    if(synchandler) synchandler();
 	return 1;
 }

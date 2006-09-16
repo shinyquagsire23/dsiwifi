@@ -176,13 +176,13 @@ enum WEPMODES {
 };
 
 enum WIFI_ASSOCSTATUS {
-   ASSOCSTATUS_DISCONNECTED, // not *trying* to connect
-   ASSOCSTATUS_SEARCHING, // data given does not completely specify an AP, looking for AP that matches the data.
-   ASSOCSTATUS_AUTHENTICATING, // connecting...
-   ASSOCSTATUS_ASSOCIATING, // connecting...
-   ASSOCSTATUS_ACQUIRINGDHCP, // connected to AP, but getting IP data from DHCP
-   ASSOCSTATUS_ASSOCIATED,	// Connected! (COMPLETE if Wifi_ConnectAP was called to start)
-   ASSOCSTATUS_CANNOTCONNECT, // error in connecting...
+    ASSOCSTATUS_DISCONNECTED, // not *trying* to connect
+    ASSOCSTATUS_SEARCHING, // data given does not completely specify an AP, looking for AP that matches the data.
+    ASSOCSTATUS_AUTHENTICATING, // connecting...
+    ASSOCSTATUS_ASSOCIATING, // connecting...
+    ASSOCSTATUS_ACQUIRINGDHCP, // connected to AP, but getting IP data from DHCP
+    ASSOCSTATUS_ASSOCIATED,	// Connected! (COMPLETE if Wifi_ConnectAP was called to start)
+    ASSOCSTATUS_CANNOTCONNECT, // error in connecting... (COMPLETE if Wifi_ConnectAP was called to start)
 };
 
 typedef struct WIFI_TXHEADER {

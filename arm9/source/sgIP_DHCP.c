@@ -292,6 +292,7 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 		sgIP_free(p);
 		// has timeout expired?
 		if( (sgIP_timems-dhcp_timestart) > SGIP_DHCP_ERRORTIMEOUT) {
+            SGIP_DEBUG_MESSAGE(("sgIP DHCP error timeout!"));
 			sgIP_DHCP_Terminate();
 			dhcp_status=SGIP_DHCP_STATUS_FAILED;
 			return dhcp_status;
@@ -301,6 +302,7 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 			sgIP_DHCP_SendDgram();
 		}
 	} else {
+        SGIP_DEBUG_MESSAGE(("sgIP DHCP alloc failed!"));
 		sgIP_DHCP_Terminate();
 		dhcp_status=SGIP_DHCP_STATUS_FAILED;
 	}

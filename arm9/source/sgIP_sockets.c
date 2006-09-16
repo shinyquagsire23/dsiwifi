@@ -156,7 +156,15 @@ int send(int socket, const void * data, int sendlength, int flags) {
    int retval=SGIP_ERROR(EINVAL);
    socket--;
    if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_TCP) {
-      retval=sgIP_TCP_Send((sgIP_Record_TCP *)socketlist[socket].conn_ptr,data,sendlength,flags);
+       do {
+           retval=sgIP_TCP_Send((sgIP_Record_TCP *)socketlist[socket].conn_ptr,data,sendlength,flags);
+           if(retval!=-1) break;
+           if(errno!=EWOULDBLOCK) break;
+           if(socketlist[socket].flags&SGIP_SOCKET_FLAG_NONBLOCKING) break;
+           SGIP_INTR_UNPROTECT();
+           SGIP_WAITEVENT();
+           SGIP_INTR_REPROTECT();
+       } while(1);
    }
    SGIP_INTR_UNPROTECT();
    return retval;

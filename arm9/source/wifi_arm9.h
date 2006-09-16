@@ -31,6 +31,15 @@ SOFTWARE.
 #include "wifi_shared.h"
 
 
+
+// default option is to use 128k heap
+#define WIFIINIT_OPTION_USEHEAP_128    0x0000
+#define WIFIINIT_OPTION_USEHEAP_64     0x1000
+#define WIFIINIT_OPTION_USEHEAP_256    0x2000
+#define WIFIINIT_OPTION_USEHEAP_512    0x3000
+#define WIFIINIT_OPTION_USECUSTOMALLOC 0x4000
+#define WIFIINIT_OPTION_HEAPMASK       0xF000
+
 #ifdef WIFI_USE_TCP_SGIP
 
 #ifdef __cplusplus
