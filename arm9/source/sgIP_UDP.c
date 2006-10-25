@@ -70,7 +70,7 @@ int sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
     checksum=(checksum&0xFFFF) + (checksum>>16);
     checksum=(checksum&0xFFFF) + (checksum>>16);
 
-    checksum = ~checksum;
+    checksum = (~checksum)&0xFFFF;
     if(checksum==0) checksum=0xFFFF;
 	return checksum;
 }
