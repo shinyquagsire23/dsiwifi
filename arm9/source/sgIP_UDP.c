@@ -67,9 +67,11 @@ int sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
 	checksum+=(srcip>>16);
 	checksum+=htons(totallength);
 	checksum+=(17)<<8;
-	checksum+=(checksum>>16);
-	checksum&=0xFFFF;
+    checksum=(checksum&0xFFFF) + (checksum>>16);
+    checksum=(checksum&0xFFFF) + (checksum>>16);
 
+    checksum = ~checksum;
+    if(checksum==0) checksum=0xFFFF;
 	return checksum;
 }
 
@@ -138,8 +140,7 @@ int sgIP_UDP_SendPacket(sgIP_Record_UDP * rec, const char * data, int datalen, u
 	for(i=0;i<datalen;i++) {
 		mb->datastart[i+8]=data[i];
 	}
-	udp->checksum=~sgIP_UDP_CalcChecksum(mb,srcip,destip,mb->totallength);
-	if(udp->checksum==0) udp->checksum=0xFFFF;
+	udp->checksum=sgIP_UDP_CalcChecksum(mb,srcip,destip,mb->totallength);
 	sgIP_IP_SendViaIP(mb,17,srcip,destip);
 
 	SGIP_INTR_UNPROTECT();
