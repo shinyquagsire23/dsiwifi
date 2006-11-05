@@ -772,6 +772,7 @@ void Wifi_Timer(int num_ms) {
 
 unsigned long Wifi_Init(int initflags) {
 	erasemem(&Wifi_Data_Struct,sizeof(Wifi_Data_Struct));
+    DC_FlushAll();
 	WifiData = (Wifi_MainStruct *) (((u32)&Wifi_Data_Struct)| 0x00400000); // should prevent the cache from eating us alive.
 
 #ifdef WIFI_USE_TCP_SGIP
