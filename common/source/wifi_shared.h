@@ -219,6 +219,7 @@ typedef struct WIFI_ACCESSPOINT {
 } Wifi_AccessPoint;
 
 typedef struct WIFI_MAINSTRUCT {
+	unsigned long dummy1[8];
 	// wifi status
 	u16 curChannel, reqChannel;
 	u16 curMode, reqMode;
@@ -272,6 +273,8 @@ typedef struct WIFI_MAINSTRUCT {
 	u16 debug[30];
 
    u32 random; // semirandom number updated at the convenience of the arm7. use for initial seeds & such.
+
+	unsigned long dummy2[8];
 
 } Wifi_MainStruct;
 
