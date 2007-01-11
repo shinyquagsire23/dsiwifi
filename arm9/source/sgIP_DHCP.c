@@ -60,10 +60,14 @@ int sgIP_DHCP_IsDhcpIp(unsigned long ip) { // check if the IP address was assign
 
 void sgIP_DHCP_SendDgram() {
    struct sockaddr_in sain;
+   int len_dhcp;
    sain.sin_port=htons(67); // bootp server port
    sain.sin_addr.s_addr=0xFFFFFFFF; // broadcast
    dhcp_p->options[dhcp_optionptr++]=0xFF; // terminate options list.
-   sendto(dhcp_socket,dhcp_p,sizeof(sgIP_DHCP_Packet)-312+dhcp_optionptr,0,(struct sockaddr *)&sain,sizeof(sain));
+   //sendto(dhcp_socket,dhcp_p,sizeof(sgIP_DHCP_Packet)-312+dhcp_optionptr,0,(struct sockaddr *)&sain,sizeof(sain));
+   len_dhcp = sizeof(sgIP_DHCP_Packet)-312+dhcp_optionptr;
+   if(len_dhcp<300) len_dhcp=300;
+   sendto(dhcp_socket,dhcp_p,len_dhcp,0,(struct sockaddr *)&sain,sizeof(sain));
    sgIP_free(dhcp_p);
    dhcp_p=0;
    dhcp_timelastaction=sgIP_timems;
@@ -74,6 +78,7 @@ void sgIP_DHCP_BeginDgram(int dgramtype) {
    if(dhcp_p) sgIP_free(dhcp_p);
    dhcp_p = (sgIP_DHCP_Packet *) sgIP_malloc(sizeof(sgIP_DHCP_Packet));
    if(!dhcp_p) return;
+   for(i=0;i<312;i++) dhcp_p->options[i]=0;
    dhcp_p->op=1;                 // 1==BOOTREQUEST
    dhcp_p->htype=1;              // 1== ethernet address type
    dhcp_p->hlen=6;               // hardware address length

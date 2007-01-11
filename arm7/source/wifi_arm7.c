@@ -362,7 +362,7 @@ void Wifi_WakeUp() {
 }
 void Wifi_Shutdown() {
 	int a;
-	if(ReadFlashByte(0x40)!=3) {
+	if(ReadFlashByte(0x40)==2) {
 		Wifi_RFWrite(0xC008);
 	}
 	a=Wifi_BBRead(0x1E);
@@ -842,6 +842,8 @@ void Wifi_Init(u32 wifidata) {
 	POWERCNT7 |= 2; // enable power for the wifi
 	*((volatile u16 *)0x04000206) = 0x30; // ???
 
+    InitFlashData();
+
 	// reset/shutdown wifi:
 	WIFI_REG(0x4)=0xffff;
 	Wifi_Stop();
@@ -859,7 +861,6 @@ void Wifi_Init(u32 wifidata) {
 	int i;
 	for(i=0x4000;i<0x6000;i+=2) WIFI_REG(i)=0;
 
-	InitFlashData();
 
    // load in the WFC data.
    GetWfcSettings();
@@ -1005,13 +1006,33 @@ void Wifi_Stop() {
 }
 
 void Wifi_SetChannel(int channel) {
-	int i;
+	int i,n;
 	if(channel<1 || channel>13) return;
-	channel-=1;
-	Wifi_RFWrite(ReadFlashBytes(0xf2+channel*6,3));
-	Wifi_RFWrite(ReadFlashBytes(0xf5+channel*6,3));
-	for(i=0;i<20000;i++) i++;
-	Wifi_BBWrite(0x1E, ReadFlashByte(0x146+channel));
+    channel-=1;
+
+    switch(ReadFlashByte(0x40)) {
+    case 2:
+    case 5:
+        Wifi_RFWrite(ReadFlashBytes(0xf2+channel*6,3));
+        Wifi_RFWrite(ReadFlashBytes(0xf5+channel*6,3));
+        for(i=0;i<20000;i++) i++;
+        Wifi_BBWrite(0x1E, ReadFlashByte(0x146+channel));
+        break;
+    case 3:
+        n=ReadFlashByte(0x42);
+        n+=0xCF;
+        for(i=0;i<=ReadFlashByte(0x43);i++) {
+            Wifi_BBWrite(ReadFlashByte(n),ReadFlashByte(n+channel+1));
+            n+=15;
+        }
+        for(i=0;i<ReadFlashByte(0x43);i++) {
+            Wifi_RFWrite( (ReadFlashByte(n)<<8) | ReadFlashByte(n+channel+1) | 0x050000 );
+            n+=15;
+        }
+        break;
+    default:
+        break;
+    }
 	WifiData->curChannel=channel+1;
 }
 void Wifi_SetWepKey(void * wepkey) {

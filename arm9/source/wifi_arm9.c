@@ -607,7 +607,7 @@ int Wifi_AssocStatus() {
 #ifdef WIFI_USE_TCP_SGIP
 					Wifi_SetIP(WifiData->wfc_config[n][0],WifiData->wfc_config[n][1],WifiData->wfc_config[n][2],WifiData->wfc_config[n][3],WifiData->wfc_config[n][4]);
 #endif
-					WifiData->wepmode9=WifiData->wfc_enable[n]&0x0F; // copy data
+					WifiData->wepmode9=WifiData->wfc_enable[n]&0x03; // copy data
 					WifiData->wepkeyid9=(WifiData->wfc_enable[n]>>4)&7;
 					for(i=0;i<16;i++) {
 						WifiData->wepkey9[i]=WifiData->wfc_wepkey[n][i];
