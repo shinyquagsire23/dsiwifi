@@ -355,7 +355,7 @@ dns_listenonly:
          if(i==-1) { // no reply, retry
             retries++;
             if(retries>=SGIP_DNS_MAXRETRY) { // maybe try another server? for now just quit.
-               close(dns_sock);
+               closesocket(dns_sock);
                dns_sock=-1;
                SGIP_INTR_UNPROTECT();
 
@@ -431,7 +431,7 @@ dns_listenonly:
          }
       } while(1);
 
-      close(dns_sock);
+      closesocket(dns_sock);
       dns_sock=-1;
    } else {
       SGIP_INTR_UNPROTECT();

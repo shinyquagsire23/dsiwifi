@@ -95,7 +95,7 @@ int socket(int domain, int type, int protocol) {
 }
 
 
-int close(int socket) {
+int closesocket(int socket) {
 	if(socket<1 || socket>SGIP_SOCKET_MAXSOCKETS) return SGIP_ERROR(EINVAL);
 	SGIP_INTR_PROTECT();
 	socket--;

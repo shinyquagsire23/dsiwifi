@@ -4,7 +4,7 @@ endif
  
 export TOPDIR	:=	$(CURDIR)
  
-VERSION	:=	0.3c
+VERSION	:=	0.3d
  
  
 all: release debug

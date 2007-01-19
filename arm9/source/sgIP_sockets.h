@@ -59,7 +59,7 @@ extern "C" {
 	extern int listen(int socket, int max_connections);
 	extern int accept(int socket, struct sockaddr * addr, int * addr_len);
 	extern int shutdown(int socket, int shutdown_type);
-	extern int close(int socket);
+	extern int closesocket(int socket);
 
 	extern int ioctl(int socket, long cmd, void * arg);
 

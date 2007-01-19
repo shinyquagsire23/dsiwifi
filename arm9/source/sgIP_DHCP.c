@@ -315,7 +315,7 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 	return dhcp_status;
 }
 void sgIP_DHCP_Terminate() { // kill the process where it stands; deallocate all DHCP resources.
-   if(dhcp_socket) close(dhcp_socket);
+   if(dhcp_socket) closesocket(dhcp_socket);
    dhcp_socket=0;
    if(dhcp_p) sgIP_free(dhcp_p);
    dhcp_p=0;
