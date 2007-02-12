@@ -171,7 +171,7 @@ SOFTWARE.
 
 //////////////////////////////////////////////////////////////////////////
 
-#define SGIP_DHCP_ERRORTIMEOUT               30000
+#define SGIP_DHCP_ERRORTIMEOUT               45000
 #define SGIP_DHCP_RESENDTIMEOUT				 3000
 #define SGIP_DHCP_DEFAULTHOSTNAME            "NintendoDS"
 #define SGIP_DHCP_CLASSNAME                  "sgIP 0.3"
