@@ -481,7 +481,7 @@ int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * we
 	}
 	return 0;
 }
-extern void Wifi_AutoConnect() {
+void Wifi_AutoConnect() {
 	if(!(WifiData->wfc_enable[0]&0x80)) {
 		wifi_connect_state=ASSOCSTATUS_CANNOTCONNECT;
 	} else {
