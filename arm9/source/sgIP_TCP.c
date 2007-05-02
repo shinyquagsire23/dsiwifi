@@ -471,10 +471,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 		break;
 	case SGIP_TCP_STATE_ESTABLISHED: // syns have been exchanged
       if(tcp->tcpflags&SGIP_TCP_FLAG_FIN) {
-         // check sequence against receive window
+         // check sequence against next ack number
          delta1=(int)(tcpseq-rec->ack);
-         delta2=(int)(rec->rxwindow-tcpseq);
-         if(delta1<0 || delta2<0) break; // out of range, they should know better.
+         //delta2=(int)(rec->rxwindow-tcpseq);
+         if(delta1<0 || delta1>0) break; // out of range, they should know better.
          // this is the end...
          rec->tcpstate=SGIP_TCP_STATE_CLOSE_WAIT;
          rec->ack=tcpseq+datalen+1;
@@ -485,10 +485,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 	case SGIP_TCP_STATE_FIN_WAIT_1: // sent a FIN, haven't got FIN or ACK yet.
       switch(tcp->tcpflags&(SGIP_TCP_FLAG_FIN|SGIP_TCP_FLAG_ACK)) {
       case SGIP_TCP_FLAG_FIN:
-         // check sequence against receive window
+         // check sequence against next ack number
          delta1=(int)(tcpseq-rec->ack);
-         delta2=(int)(rec->rxwindow-tcpseq);
-         if(delta1<0 || delta2<0) break; // out of range, they should know better.
+         //delta2=(int)(rec->rxwindow-tcpseq);
+         if(delta1<0 || delta1>0) break; // out of range, they should know better.
 
          rec->tcpstate=SGIP_TCP_STATE_CLOSING;
          rec->ack=tcpseq+datalen+1;
@@ -498,10 +498,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
          rec->tcpstate=SGIP_TCP_STATE_FIN_WAIT_2;
          break;
       case (SGIP_TCP_FLAG_FIN | SGIP_TCP_FLAG_ACK): // already checked ack, check sequence though
-         // check sequence against receive window
+         // check sequence against next ack number
          delta1=(int)(tcpseq-rec->ack);
-         delta2=(int)(rec->rxwindow-tcpseq);
-         if(delta1<0 || delta2<0) break; // out of range, they should know better.
+         //delta2=(int)(rec->rxwindow-tcpseq);
+         if(delta1<0 || delta1>0) break; // out of range, they should know better.
          rec->tcpstate=SGIP_TCP_STATE_TIME_WAIT;
 		 rec->ack=tcpseq+datalen+1;
          sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0);
@@ -510,10 +510,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
       break;
 	case SGIP_TCP_STATE_FIN_WAIT_2: // got ACK for our FIN, haven't got FIN yet.
       if(tcp->tcpflags&SGIP_TCP_FLAG_FIN) {
-         // check sequence against receive window
-         delta1=(int)(tcpseq-rec->ack);
-         delta2=(int)(rec->rxwindow-tcpseq);
-         if(delta1<0 || delta2<0) break; // out of range, they should know better.
+          // check sequence against next ack number
+          delta1=(int)(tcpseq-rec->ack);
+          //delta2=(int)(rec->rxwindow-tcpseq);
+          if(delta1<0 || delta1>0) break; // out of range, they should know better.
 
          rec->tcpstate=SGIP_TCP_STATE_TIME_WAIT;
 		 rec->ack=tcpseq+datalen+1;
@@ -522,10 +522,10 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 		break;
 	case SGIP_TCP_STATE_CLOSE_WAIT: // got FIN, wait for user code to close socket & send FIN
       if(tcp->tcpflags&SGIP_TCP_FLAG_FIN) {
-         // check sequence against receive window
-         delta1=(int)(tcpseq-rec->ack);
-         delta2=(int)(rec->rxwindow-tcpseq);
-         if(delta1<1 || delta2<0) break; // out of range, they should know better.
+          // check sequence against next ack number
+          delta1=(int)(tcpseq-rec->ack);
+          //delta2=(int)(rec->rxwindow-tcpseq);
+          if(delta1<0 || delta1>0) break; // out of range, they should know better.
 
          sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0); // they still don't seem to have got our ack, we'll send it again.
       }
