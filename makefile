@@ -4,7 +4,7 @@ endif
  
 export TOPDIR	:=	$(CURDIR)
  
-VERSION	:=	0.3d
+VERSION	:=	0.3.1
  
 .PHONEY: release debug clean all
 
