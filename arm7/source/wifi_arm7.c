@@ -350,13 +350,16 @@ void Wifi_RxSetup() {
 void Wifi_WakeUp() {
 	u32 i;
 	WIFI_REG(0x8036)=0;
-	for(i=0;i<100000;i++) i++;
+
+	swiDelay( 67109 ); // 8ms delay
+
 	WIFI_REG(0x8168)=0;
 
 	i=Wifi_BBRead(1);
 	Wifi_BBWrite(1,i&0x7f);
 	Wifi_BBWrite(1,i);
-	for(i=0;i<400000;i++) i++;
+
+	swiDelay( 335544 ); // 40ms delay
 
 	Wifi_RFInit();
 }
@@ -1015,7 +1018,9 @@ void Wifi_SetChannel(int channel) {
     case 5:
         Wifi_RFWrite(ReadFlashBytes(0xf2+channel*6,3));
         Wifi_RFWrite(ReadFlashBytes(0xf5+channel*6,3));
-        for(i=0;i<20000;i++) i++;
+
+		swiDelay( 12583 ); // 1500 us delay
+
         Wifi_BBWrite(0x1E, ReadFlashByte(0x146+channel));
         break;
     case 3:
