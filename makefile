@@ -3,12 +3,27 @@ $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>dev
 endif
  
 export TOPDIR	:=	$(CURDIR)
- 
-VERSION	:=	0.3.1
+
+export DSWIFI_MAJOR	:= 0
+export DSWIFI_MINOR	:= 3
+export DSWIFI_REVISION	:= 2
+
+VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MAJOR).$(DSWIFI_REVISION)
  
 .PHONEY: release debug clean all
 
-all: release debug
+all: include/dswifi_version.h release debug 
+
+include/dswifi_version.h : makefile
+	@echo "#ifndef _dswifi_version_h_" > $@
+	@echo "#define _dswifi_version_h_" >> $@
+	@echo >> $@
+	@echo "#define DSWIFI_MAJOR    $(DSWIFI_MAJOR)" >> $@
+	@echo "#define DSWIFI_MINOR    $(DSWIFI_MINOR)" >> $@
+	@echo "#define DSWIFI_REVISION $(DSWIFI_REVISION)" >> $@
+	@echo >> $@
+	@echo "#endif // _dswifi_version_h_" >> $@
+
 
 #-------------------------------------------------------------------------------
 release: lib

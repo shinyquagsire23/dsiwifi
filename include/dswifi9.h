@@ -26,6 +26,7 @@ SOFTWARE.
 #ifndef DSWIFI9_H
 #define DSWIFI9_H
 
+#include "dswifi_version.h"
 
 // well, some flags and stuff are just stuffed in here and not documented very well yet... Most of the important stuff is documented though.
 // Next version should clean up some of this a lot more :)
