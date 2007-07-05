@@ -119,9 +119,10 @@ void GetWfcSettings() {
    int i,n, c;
    unsigned long s;
    c=0;
+   u32 wfcBase = ReadFlashBytes(0x20, 2) * 8 - 0x400;
    for(i=0;i<3;i++) WifiData->wfc_enable[i]=0;
    for(i=0;i<3;i++) {
-      Read_Flash(0x03FA00+(i<<8),(char *)data,256);
+      Read_Flash( wfcBase +(i<<8),(char *)data,256);
       // check for validity (crc16)
 	  if(crc16_slow(data,256)==0x0000 && data[0xE7]==0x00) { // passed the test
 		  WifiData->wfc_enable[c] = 0x80 | (data[0xE6]&0x0F);
