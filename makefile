@@ -22,6 +22,8 @@ include/dswifi_version.h : makefile
 	@echo "#define DSWIFI_MINOR    $(DSWIFI_MINOR)" >> $@
 	@echo "#define DSWIFI_REVISION $(DSWIFI_REVISION)" >> $@
 	@echo >> $@
+	@echo '#define DSWIFI_VERSION "'$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)'"' >> $@
+	@echo >> $@
 	@echo "#endif // _dswifi_version_h_" >> $@
 
 
