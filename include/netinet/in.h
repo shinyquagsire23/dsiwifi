@@ -49,8 +49,9 @@ extern "C" {
 #endif
 
 	// actually from arpa/inet.h - but is included through netinet/in.h
-	extern unsigned long inet_addr(const char *cp);
-
+	unsigned long inet_addr(const char *cp);
+	int inet_aton(const char *cp, struct in_addr *inp);
+	char *inet_ntoa(struct in_addr in);
 
 #ifdef __cplusplus
 };

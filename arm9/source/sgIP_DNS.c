@@ -187,7 +187,7 @@ sgIP_DNS_Record * sgIP_DNS_GetUnusedRecord() {
    return dnsrecords+j;
 }
 
-sgIP_DNS_Hostent * sgIP_DNS_GenerateHostentIP(unsigned long ipaddr) {
+void sgIP_ntoa(unsigned long ipaddr) {
    int c,i,j,n;
    c=0;
    for(j=0;j<4;j++) {
@@ -199,6 +199,12 @@ sgIP_DNS_Hostent * sgIP_DNS_GenerateHostentIP(unsigned long ipaddr) {
       ipaddr_alias[c++]='0'+n;
    }
    ipaddr_alias[c]=0;
+}
+
+sgIP_DNS_Hostent * sgIP_DNS_GenerateHostentIP(unsigned long ipaddr) {
+
+   sgIP_ntoa(ipaddr);
+
    alias_list[0]=ipaddr_alias;
    alias_list[1]=0;
    ipaddr_ip=ipaddr;
@@ -451,5 +457,26 @@ unsigned long inet_addr(const char *cp) {
 	}
 	return 0xFFFFFFFF;
 }
+
+int inet_aton(const char *cp, struct in_addr *inp) {
+
+	unsigned long IP;
+	
+	if(sgIP_DNS_isipaddress(cp,&IP)) {
+		inp->s_addr = IP;
+		return 1;
+	}
+
+	return 0;
+}
+
+
+char *inet_ntoa(struct in_addr in) {
+
+	sgIP_ntoa(in.s_addr);
+	return (char *)ipaddr_alias;
+
+}
+
 
 
