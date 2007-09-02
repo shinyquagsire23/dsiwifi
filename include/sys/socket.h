@@ -28,7 +28,6 @@ SOFTWARE.
 #ifndef SYS_SOCKET_H
 #define SYS_SOCKET_H
 
-#define FD_SETSIZE	32
 #include <sys/time.h>
 
 
