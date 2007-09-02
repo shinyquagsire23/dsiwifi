@@ -78,7 +78,10 @@ void sgIP_DHCP_BeginDgram(int dgramtype) {
    if(dhcp_p) sgIP_free(dhcp_p);
    dhcp_p = (sgIP_DHCP_Packet *) sgIP_malloc(sizeof(sgIP_DHCP_Packet));
    if(!dhcp_p) return;
-   for(i=0;i<312;i++) dhcp_p->options[i]=0;
+
+   // ensure packet is zero'd.. seems to pacify some routers.  malloc doesn't initialise the memory returned.
+   memset(dhcp_p,0,sizeof(sgIP_DHCP_Packet));
+   
    dhcp_p->op=1;                 // 1==BOOTREQUEST
    dhcp_p->htype=1;              // 1== ethernet address type
    dhcp_p->hlen=6;               // hardware address length
@@ -90,9 +93,9 @@ void sgIP_DHCP_BeginDgram(int dgramtype) {
    dhcp_p->yiaddr=0;
    dhcp_p->siaddr=0;
    dhcp_p->giaddr=0;
-   for(i=0;i<6;i++)  dhcp_p->chaddr[i]=dhcp_int->hwaddr[i];
-   for(i=0;i<64;i++) dhcp_p->sname[i]=0;
-   for(i=0;i<128;i++) dhcp_p->file[i]=0;
+
+   memcpy(dhcp_p->chaddr,dhcp_int->hwaddr,6);
+   
    dhcp_optionptr=0;
    dhcp_p->options[dhcp_optionptr++]=0x63;
    dhcp_p->options[dhcp_optionptr++]=0x82;
@@ -107,6 +110,18 @@ void sgIP_DHCP_BeginDgram(int dgramtype) {
    dhcp_p->options[dhcp_optionptr++]=0x07; // length
    dhcp_p->options[dhcp_optionptr++]=0x01; // hw type
    for(i=0;i<6;i++)    dhcp_p->options[dhcp_optionptr++]=dhcp_int->hwaddr[i];
+
+   dhcp_p->options[dhcp_optionptr++]=0x0C; // DHCP host name
+   dhcp_p->options[dhcp_optionptr++]=strlen(dhcp_hostname);
+   for(i=0;i<strlen(dhcp_hostname);i++) {
+      dhcp_p->options[dhcp_optionptr++]=dhcp_hostname[i];
+   }
+
+   dhcp_p->options[dhcp_optionptr++]=0x37; // DHCP Parameter request list
+   dhcp_p->options[dhcp_optionptr++]=2+dhcp_requestDNS;
+   dhcp_p->options[dhcp_optionptr++]=1; // subnet mask
+   dhcp_p->options[dhcp_optionptr++]=3; // router
+   if(dhcp_requestDNS) dhcp_p->options[dhcp_optionptr++]=6; // dns server
 
    if(dgramtype==DHCP_TYPE_REQUEST) {
 	   dhcp_p->options[dhcp_optionptr++]=0x32; // DHCP Requested IP address
@@ -124,24 +139,11 @@ void sgIP_DHCP_BeginDgram(int dgramtype) {
 	   dhcp_p->options[dhcp_optionptr++]=(dhcp_serverip>>24)&255;
    }
 
-   dhcp_p->options[dhcp_optionptr++]=0x0C; // DHCP host name
-   dhcp_p->options[dhcp_optionptr++]=strlen(dhcp_hostname);
-   for(i=0;i<strlen(dhcp_hostname);i++) {
-      dhcp_p->options[dhcp_optionptr++]=dhcp_hostname[i];   
-   }
-
-
    dhcp_p->options[dhcp_optionptr++]=0x3C; // DHCP Vendor Class ID
    dhcp_p->options[dhcp_optionptr++]=strlen(SGIP_DHCP_CLASSNAME);
    for(i=0;i<strlen(SGIP_DHCP_CLASSNAME);i++) {
       dhcp_p->options[dhcp_optionptr++]=(SGIP_DHCP_CLASSNAME)[i];   
    }
-  
-   dhcp_p->options[dhcp_optionptr++]=0x37; // DHCP Parameter request list
-   dhcp_p->options[dhcp_optionptr++]=2+dhcp_requestDNS;
-   dhcp_p->options[dhcp_optionptr++]=1; // subnet mask
-   dhcp_p->options[dhcp_optionptr++]=3; // router
-   if(dhcp_requestDNS) dhcp_p->options[dhcp_optionptr++]=6; // dns server
 
    // reason we don't send it immediately is in case the calling code wants to modify some data or add some options.
 }
@@ -193,8 +195,11 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 	struct sockaddr_in * sain;
 	int i,j,n,l;
 	if(dhcp_status!=SGIP_DHCP_STATUS_WORKING) return dhcp_status;
+	int send = 0;
+
 	p=(sgIP_DHCP_Packet *)sgIP_malloc(sizeof(sgIP_DHCP_Packet));
 	if(p) {
+
 		while(1) {
 			l=recvfrom(dhcp_socket,p,sizeof(sgIP_DHCP_Packet),0,(struct sockaddr *)&sain,&n);
 			if(l==-1) break;
@@ -288,12 +293,14 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 			}
 			if(l==-1) continue;
 			dhcp_rcvd_ip=(p->yiaddr);
+
+		 // discover succeeded.  increment transaction id.  force sending REQUEST message next.
          dhcp_state=1;
-         dhcp_timelastaction=sgIP_timems-SGIP_DHCP_RESENDTIMEOUT-100; // force resend.
+		 dhcp_tid += ( sgIP_timems-dhcp_timestart ) + 1;
+		 send = 1;
          break;
-
-
 		}
+
 		sgIP_free(p);
 		// has timeout expired?
 		if( (sgIP_timems-dhcp_timestart) > SGIP_DHCP_ERRORTIMEOUT) {
@@ -302,7 +309,8 @@ int  sgIP_DHCP_Update() { // MUST be called periodicly; returns status - call un
 			dhcp_status=SGIP_DHCP_STATUS_FAILED;
 			return dhcp_status;
 		}
-		if( (sgIP_timems-dhcp_timelastaction) > SGIP_DHCP_RESENDTIMEOUT) {
+		if( send || (sgIP_timems-dhcp_timelastaction) > SGIP_DHCP_RESENDTIMEOUT )
+		{
 			if(dhcp_state==0) sgIP_DHCP_BeginDgram(DHCP_TYPE_DISCOVER); else sgIP_DHCP_BeginDgram(DHCP_TYPE_REQUEST);
 			sgIP_DHCP_SendDgram();
 		}
