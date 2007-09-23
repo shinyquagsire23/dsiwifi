@@ -34,6 +34,7 @@ SOFTWARE.
 volatile Wifi_MainStruct * WifiData = 0;
 WifiSyncHandler synchandler = 0;
 int keepalive_time = 0;
+int chdata_save5 = 0;
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -226,6 +227,7 @@ void Wifi_RFInit() {
 	int channel_extrabits;
 	int numchannels;
 	int channel_extrabytes;
+	int temp;
 	for(i=0;i<16;i++) {
 		WIFI_REG(RF_Reglist[i])=ReadFlashHWord(0x44+i*2);
 	}
@@ -237,6 +239,15 @@ void Wifi_RFInit() {
 	if(ReadFlashByte(0x40)==3) {
 		for(i=0;i<numchannels;i++) {
 			Wifi_RFWrite(ReadFlashByte(j++)|(i<<8)|0x50000);
+		}
+	} else if(ReadFlashByte(0x40)==2) {
+		for(i=0;i<numchannels;i++) {
+			temp = ReadFlashBytes(j,channel_extrabytes);
+			Wifi_RFWrite(temp);
+			j+=channel_extrabytes;
+			if( (temp>>18)==9 ) {
+				chdata_save5 = temp&(~0x7C00);
+			}
 		}
 	} else {
 		for(i=0;i<numchannels;i++) {
@@ -1010,7 +1021,7 @@ void Wifi_Stop() {
 }
 
 void Wifi_SetChannel(int channel) {
-	int i,n;
+	int i,n,l;
 	if(channel<1 || channel>13) return;
     channel-=1;
 
@@ -1022,12 +1033,21 @@ void Wifi_SetChannel(int channel) {
 
 		swiDelay( 12583 ); // 1500 us delay
 
-        Wifi_BBWrite(0x1E, ReadFlashByte(0x146+channel));
+		if(chdata_save5 & 0x10000)
+		{
+			if(chdata_save5 & 0x8000) break;
+			n = ReadFlashByte(0x154+channel);
+			Wifi_RFWrite( chdata_save5 | ((n&0x1F)<<10) );
+		} else {
+			Wifi_BBWrite(0x1E, ReadFlashByte(0x146+channel));
+		}
+
         break;
     case 3:
         n=ReadFlashByte(0x42);
         n+=0xCF;
-        for(i=0;i<=ReadFlashByte(0x43);i++) {
+		l=ReadFlashByte(n-1);
+        for(i=0;i<l;i++) {
             Wifi_BBWrite(ReadFlashByte(n),ReadFlashByte(n+channel+1));
             n+=15;
         }
@@ -1035,7 +1055,10 @@ void Wifi_SetChannel(int channel) {
             Wifi_RFWrite( (ReadFlashByte(n)<<8) | ReadFlashByte(n+channel+1) | 0x050000 );
             n+=15;
         }
-        break;
+		
+		swiDelay( 12583 ); // 1500 us delay
+        
+		break;
     default:
         break;
     }
