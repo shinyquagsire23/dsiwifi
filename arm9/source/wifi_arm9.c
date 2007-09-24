@@ -31,6 +31,7 @@ SOFTWARE.
 #include "wifi_arm9.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 
 
 
@@ -490,7 +491,28 @@ void Wifi_AutoConnect() {
 	}
 }
 
+static
+void sgIP_DNS_Record_Localhost()
+{
+    sgIP_DNS_Record *rec;
+    const unsigned char * resdata_c = (unsigned char *)&(wifi_hw->ipaddr);
+    rec = sgIP_DNS_GetUnusedRecord();
+    rec->flags=SGIP_DNS_FLAG_ACTIVE | SGIP_DNS_FLAG_BUSY;
+    
+    rec->addrlen    = 4;
+    rec->numalias   = 1;
+    gethostname(rec->aliases[0], 256);
+    gethostname(rec->name, 256);
+    rec->numaddr    = 1;
+    rec->addrdata[0] = resdata_c[0];
+    rec->addrdata[1] = resdata_c[1];
+    rec->addrdata[2] = resdata_c[2];
+    rec->addrdata[3] = resdata_c[3];
+    rec->addrclass = AF_INET;
+    rec->TTL = 0;
 
+    rec->flags=SGIP_DNS_FLAG_ACTIVE | SGIP_DNS_FLAG_BUSY|SGIP_DNS_FLAG_RESOLVED;
+}
 
 int Wifi_AssocStatus() {
 	switch(wifi_connect_state) {
@@ -577,6 +599,7 @@ int Wifi_AssocStatus() {
 						wifi_connect_state=3;
 						WifiData->flags9|=WFLAG_ARM9_NETREADY;
 						sgIP_ARP_SendGratARP(wifi_hw);
+                        sgIP_DNS_Record_Localhost();
 						return ASSOCSTATUS_ASSOCIATED;
 					default:
 					case SGIP_DHCP_STATUS_IDLE:

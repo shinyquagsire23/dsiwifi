@@ -58,7 +58,8 @@ extern void sgIP_DNS_Init();
 extern void sgIP_DNS_Timer1000ms();
 
 extern sgIP_DNS_Hostent * sgIP_DNS_gethostbyname(const char * name);
-
+extern sgIP_DNS_Record  * sgIP_DNS_GetUnusedRecord();
+extern sgIP_DNS_Record  * sgIP_DNS_FindDNSRecord(const char * name);
 
 #ifdef __cplusplus
 };
