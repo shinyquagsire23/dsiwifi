@@ -24,6 +24,7 @@ SOFTWARE.
 ******************************************************************************/
 
 #include "sgIP_DHCP.h"
+#include "sgIP_DNS.h"
 #include <string.h>
 #include "sys/socket.h"
 #include "netinet/in.h"
@@ -330,10 +331,42 @@ void sgIP_DHCP_Terminate() { // kill the process where it stands; deallocate all
    dhcp_status=SGIP_DHCP_STATUS_IDLE;
 }
 
+int gethostname(char *name, size_t len)
+{
+    int size = sizeof(dhcp_hostname);
+    if (name == NULL)
+        return SGIP_ERROR(EFAULT);
 
+    if ( len <= size ) 
+        return SGIP_ERROR(EINVAL);
+        
+    strncpy(name, dhcp_hostname, size);
+    name[size]=0;
+    return 0;
+}
 
+int sethostname(const char *name, size_t len)
+{
+    sgIP_DNS_Record *rec;
 
+    int size = sizeof(dhcp_hostname);
+    if (name == NULL)
+        return SGIP_ERROR(EFAULT);
+    
+    if ( len > size - 1) 
+        return SGIP_ERROR(EINVAL);
+        
+   rec = sgIP_DNS_FindDNSRecord(dhcp_hostname);        
+  
+   strncpy(dhcp_hostname, name, len);
+   dhcp_hostname[len]=0;
+   strncpy(rec->aliases[0], name, len);
+   rec->aliases[0][len]=0;
+   strncpy(rec->name, name, len);
+   rec->name[len]=0;
 
+   return 0;
+}
 
 
 
