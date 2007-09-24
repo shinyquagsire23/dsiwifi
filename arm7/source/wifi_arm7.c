@@ -458,12 +458,12 @@ int Wifi_QueueRxMacData(u32 base, u32 len) {
 	temp=WIFI_RXBUFFER_SIZE-(WifiData->rxbufOut*2);
     tempout=WifiData->rxbufOut;
 	if(len>temp) {
-		Wifi_MACCopy(WifiData->rxbufData+tempout,base,macofs,temp);
+		Wifi_MACCopy((u16*)WifiData->rxbufData+tempout,base,macofs,temp);
 		macofs+=temp;
 		len-=temp;
 		tempout=0;
 	}
-	Wifi_MACCopy(WifiData->rxbufData+tempout,base,macofs,len);
+	Wifi_MACCopy((u16*)WifiData->rxbufData+tempout,base,macofs,len);
 	tempout+=len/2;
 	if(tempout>=(WIFI_RXBUFFER_SIZE/2)) tempout-=(WIFI_RXBUFFER_SIZE/2);
     WifiData->rxbufOut=tempout;
@@ -698,7 +698,7 @@ void Wifi_Update() {
 					for(i=0;i<16;i++) WifiData->baserates7[i]=WifiData->baserates9[i];
 					if(WifiData->reqReqFlags&WFLAG_REQ_APADHOC) WifiData->curReqFlags |= WFLAG_REQ_APADHOC; else WifiData->curReqFlags &= ~WFLAG_REQ_APADHOC;
 				}
-            Wifi_SetWepKey(WifiData->wepkey7);
+            Wifi_SetWepKey((void *)WifiData->wepkey7);
 				Wifi_SetWepMode(WifiData->wepmode7);
 				// latch BSSID
 				W_BSSID[0]= ((u16 *)WifiData->bssid7)[0];
