@@ -187,6 +187,7 @@ sgIP_DNS_Record * sgIP_DNS_GetUnusedRecord() {
    return dnsrecords+j;
 }
 
+static
 void sgIP_ntoa(unsigned long ipaddr) {
    int c,i,j,n;
    c=0;
@@ -194,13 +195,14 @@ void sgIP_ntoa(unsigned long ipaddr) {
       if(j) ipaddr_alias[c++]='.';
       n=(ipaddr>>(j*8))&255;
       i=0;
-      if(n>100) { i=n/100; ipaddr_alias[c++]='0'+i; n-=i*100; }
-      if(n>10 || i) { i=n/10; ipaddr_alias[c++]='0'+i; n-=i*10; }
+      if(n>=100) { i=n/100; ipaddr_alias[c++]='0'+i; n-=i*100; }
+      if(n>=10 || i) { i=n/10; ipaddr_alias[c++]='0'+i; n-=i*10; }
       ipaddr_alias[c++]='0'+n;
    }
    ipaddr_alias[c]=0;
 }
 
+static
 sgIP_DNS_Hostent * sgIP_DNS_GenerateHostentIP(unsigned long ipaddr) {
 
    sgIP_ntoa(ipaddr);
@@ -238,6 +240,7 @@ sgIP_DNS_Hostent * sgIP_DNS_GenerateHostent(sgIP_DNS_Record * dnsrec) {
    return (sgIP_DNS_Hostent *)&dnsrecord_hostent;
 }
 
+static
 int sgIP_DNS_genquery(const char * name) {
    int i,j,c,l;
    unsigned short * querydata_s = (unsigned short *) querydata;
@@ -365,7 +368,7 @@ dns_listenonly:
                dns_sock=-1;
                SGIP_INTR_UNPROTECT();
 
-               return 0;
+               return NULL;
             }
             continue; // send again
          }
@@ -386,6 +389,16 @@ dns_listenonly:
             }
             q=htons(resdata_s[2]);
             a=htons(resdata_s[3]);
+            // no answer.
+            if (a == 0)
+            {
+               closesocket(dns_sock);
+               dns_sock=-1;
+               SGIP_INTR_UNPROTECT();
+
+               return NULL;
+            }
+           
             resdata_c+=12;
             while(q) { // ignore questions
                do {
@@ -441,7 +454,7 @@ dns_listenonly:
       dns_sock=-1;
    } else {
       SGIP_INTR_UNPROTECT();
-      return 0;
+      return NULL;
    }
 
    // received response, return data
@@ -459,7 +472,6 @@ unsigned long inet_addr(const char *cp) {
 }
 
 int inet_aton(const char *cp, struct in_addr *inp) {
-
 	unsigned long IP;
 	
 	if(sgIP_DNS_isipaddress(cp,&IP)) {
@@ -472,10 +484,8 @@ int inet_aton(const char *cp, struct in_addr *inp) {
 
 
 char *inet_ntoa(struct in_addr in) {
-
 	sgIP_ntoa(in.s_addr);
 	return (char *)ipaddr_alias;
-
 }
 
 
