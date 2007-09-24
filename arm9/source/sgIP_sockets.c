@@ -368,6 +368,20 @@ int getsockname(int socket, struct sockaddr *addr, int * addr_len) {
 				*addr_len=sizeof(struct sockaddr_in);
 			}
 		}
+	} else if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_UDP) {
+        {
+            struct sockaddr_in * sain = (struct sockaddr_in *)addr;
+            sgIP_Record_UDP * rec = (sgIP_Record_UDP *)socketlist[socket].conn_ptr;
+            if(rec->state==SGIP_UDP_STATE_UNUSED) {
+                SGIP_INTR_UNPROTECT();
+                return SGIP_ERROR(EINVAL);
+            } else {
+                sain->sin_addr.s_addr=rec->srcip;
+                sain->sin_family=AF_INET;
+                sain->sin_port=rec->srcport;
+                *addr_len=sizeof(struct sockaddr_in);
+            }
+        }
 	} else {
 		SGIP_INTR_UNPROTECT();
 		return SGIP_ERROR(EOPNOTSUPP);
@@ -388,10 +402,10 @@ extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
 	sgIP_Record_TCP * rec;
 	sgIP_Record_UDP * urec;
 	lasttime=sgIP_timems;
-	if(!timeout) timeout_ms=(unsigned long)2678400000;
+	if(!timeout) timeout_ms=2678400000UL;
 	else {
 		if(timeout->tv_sec>=2678400) {
-			timeout_ms=(unsigned long)2678400000;
+			timeout_ms=2678400000UL;
 		} else {
 			timeout_ms=timeout->tv_sec*1000 + (timeout->tv_usec/1000);
 		}
