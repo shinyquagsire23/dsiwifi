@@ -106,12 +106,6 @@ struct sockaddr {
 #define ntohl(num) htonl(num)
 #endif
 
-/*
-typedef struct fdset_ {
-	int fdbits[(FD_SETSIZE+31)/32];
-} fd_set;
-*/
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -144,10 +138,6 @@ extern "C" {
 
 
 	extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
-//	extern void FD_CLR(int fd, fd_set * fdset);
-//	extern int FD_ISSET(int fd, fd_set * fdset);
-//	extern void FD_SET(int fd, fd_set * fdset);
-//	extern void FD_ZERO(fd_set * fdset);
 
 
 #ifdef __cplusplus
