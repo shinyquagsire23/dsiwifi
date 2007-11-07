@@ -146,7 +146,7 @@ int sgIP_Hub_SendProtocolPacket(int protocol, sgIP_memblock * packet, unsigned l
 	}
 	// resolve protocol address to hardware address & send packet
 	if( (src_address & hw->snmask) == (dest_address & hw->snmask)	// on same network
-	 	|| (dest_address | hw->snmask) == 0xFFFFFFFF )				// or broadcast address, send directly.
+	 	|| dest_address == 0xFFFFFFFF )				// or broadcast address, send directly.
 	{ 
 		return sgIP_ARP_SendProtocolFrame(hw,packet,protocol,dest_address);
 	} else { // eek, on different network. Send to gateway
