@@ -31,6 +31,7 @@ SOFTWARE.
 #include <nds.h>
 
 
+#define WIFIINIT_OPTION_USELED		   0x0002
 
 // on spinlock contention, the side unsuccessfully attempting the lock reverts the lock.
 // if the unlocking side sees the lock incorrectly set, the unlocking side will delay until it has reverted to the correct value, then continue unlocking.

@@ -33,14 +33,6 @@ SOFTWARE.
 #include <stdlib.h>
 #include <sys/socket.h>
 
-
-
-
-
-
-
-
-
 #ifdef WIFI_USE_TCP_SGIP
 
 #include "sgIP.h"
@@ -991,5 +983,78 @@ u32 Wifi_GetStats(int statnum) {
 
 void Wifi_Sync() {
    Wifi_Update();
+}
+
+
+//---------------------------------------------------------------------------------
+// Dswifi helper functions
+
+// wifi timer function, to update internals of sgIP
+//---------------------------------------------------------------------------------
+void Timer_50ms(void) {
+//---------------------------------------------------------------------------------
+   Wifi_Timer(50);
+}
+
+// notification function to send fifo message to arm7
+//---------------------------------------------------------------------------------
+void arm9_synctoarm7() { 
+//---------------------------------------------------------------------------------
+   fifoSendValue32(FIFO_DSWIFI, WIFI_SYNC);
+}
+
+//---------------------------------------------------------------------------------
+void wifiValue32Handler(u32 value, void* data) {
+//---------------------------------------------------------------------------------
+
+	switch (value) {
+		case WIFI_SYNC:
+			Wifi_Sync();
+			break;
+		default:
+			break;
+	}
+}
+
+
+//---------------------------------------------------------------------------------
+bool wifiInit(bool useWifiSettings) {
+//---------------------------------------------------------------------------------
+   fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
+
+   u32 wifi_pass = Wifi_Init(WIFIINIT_OPTION_USELED);
+
+   if(!wifi_pass) return false;
+
+   irqSet(IRQ_TIMER3, Timer_50ms); // setup timer IRQ
+   irqEnable(IRQ_TIMER3);
+
+   Wifi_SetSyncHandler(arm9_synctoarm7); // tell wifi lib to use our handler to notify arm7
+
+   // set timer3
+   TIMER3_DATA = -6553; // 6553.1 * 256 cycles = ~50ms;
+   TIMER3_CR = 0x00C2; // enable, irq, 1/256 clock
+
+   fifoSendAddress(FIFO_DSWIFI, (void *)wifi_pass);
+
+
+   while(Wifi_CheckInit()==0) {
+      swiWaitForVBlank();
+   }
+
+   if(useWifiSettings) {  
+      int wifiStatus = ASSOCSTATUS_DISCONNECTED;
+
+      Wifi_AutoConnect(); // request connect
+
+      while(wifiStatus != ASSOCSTATUS_ASSOCIATED) {
+         wifiStatus = Wifi_AssocStatus(); // check status
+
+         if(wifiStatus == ASSOCSTATUS_CANNOTCONNECT) return false;
+
+      }  
+   }
+
+   return true;
 }
 

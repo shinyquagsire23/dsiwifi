@@ -1630,8 +1630,43 @@ int Wifi_CreateTxFrame(int frametype, void * dest, int destlen) {
 void Wifi_Sync() {
    Wifi_Update();
 }
+
 void Wifi_SetSyncHandler(WifiSyncHandler sh) {
    synchandler=sh;
 }
 
+static void wifiAddressHandler( void * address, void * userdata ) {
+	Wifi_Init((u32)address);
+	irqEnable(IRQ_WIFI);
+}
 
+static void wifiValue32Handler(u32 value, void* data) {
+
+	switch (value) {
+		case WIFI_DISABLE:
+			irqDisable(IRQ_WIFI);
+			break;
+		case WIFI_ENABLE:
+			irqEnable(IRQ_WIFI);
+			break;
+		case WIFI_SYNC:
+			REG_IME = 1;	// allow other interrupts
+			Wifi_Sync();
+			break;
+		default:
+			break;
+	}
+}
+
+// callback to allow wifi library to notify arm9
+static void arm7_synctoarm9() { 
+	fifoSendValue32(FIFO_DSWIFI, WIFI_SYNC);
+}
+
+
+void installWifiFIFO() {
+	irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
+	Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
+	fifoSetValue32Handler(FIFO_DSWIFI, wifiValue32Handler, 0);
+	fifoSetAddressHandler(FIFO_DSWIFI, wifiAddressHandler, 0);
+}

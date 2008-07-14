@@ -51,9 +51,9 @@ clean:
 	@$(MAKE) -C arm7 clean
 
 #-------------------------------------------------------------------------------
-dist-src: clean
+dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* -cjf dswifi-src-$(VERSION).tar.bz2 arm7 arm9 common include makefile dswifi_license.txt 
+	@tar --exclude=*CVS* -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include makefile dswifi_license.txt 
 
 #-------------------------------------------------------------------------------
 dist-bin: all
