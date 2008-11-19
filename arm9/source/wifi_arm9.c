@@ -1018,7 +1018,7 @@ void wifiValue32Handler(u32 value, void* data) {
 
 
 //---------------------------------------------------------------------------------
-bool Wifi_Init_Default(bool useFirmwareSettings) {
+bool Wifi_InitDefault(bool useFirmwareSettings) {
 //---------------------------------------------------------------------------------
    fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
 
