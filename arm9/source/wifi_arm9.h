@@ -28,6 +28,8 @@ SOFTWARE.
 #ifndef WIFI_ARM9_H
 #define WIFI_ARM9_H
 
+#include <nds/ndstypes.h>
+
 #include "wifi_shared.h"
 
 
@@ -80,6 +82,7 @@ extern void Wifi_CopyMacAddr(volatile void * dest, volatile void * src);
 extern int Wifi_CmpMacAddr(volatile void * mac1, volatile void * mac2);
 
 extern unsigned long Wifi_Init(int initflags);
+bool Wifi_Init_Default(bool useFirmwareSettings);
 extern int Wifi_CheckInit();
 
 extern int Wifi_RawTxFrame(u16 datalen, u16 rate, u16 * data);
@@ -106,6 +109,8 @@ extern int Wifi_GetData(int datatype, int bufferlen, unsigned char * buffer);
 
 extern void Wifi_Update();
 extern void Wifi_Sync();
+
+extern bool wifiInitDefault(bool useFirmwareSettings);
 
 #ifdef WIFI_USE_TCP_SGIP
 extern void Wifi_Timer(int num_ms);

@@ -1018,7 +1018,7 @@ void wifiValue32Handler(u32 value, void* data) {
 
 
 //---------------------------------------------------------------------------------
-bool wifiInit(bool useWifiSettings) {
+bool Wifi_Init_Default(bool useFirmwareSettings) {
 //---------------------------------------------------------------------------------
    fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
 
@@ -1039,10 +1039,11 @@ bool wifiInit(bool useWifiSettings) {
 
 
    while(Wifi_CheckInit()==0) {
-      swiWaitForVBlank();
+
+	  swiWaitForVBlank();
    }
 
-   if(useWifiSettings) {  
+   if(useFirmwareSettings) {  
       int wifiStatus = ASSOCSTATUS_DISCONNECTED;
 
       Wifi_AutoConnect(); // request connect
