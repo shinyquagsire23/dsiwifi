@@ -379,28 +379,26 @@ int Wifi_GetNumAP() {
 }
 
 int Wifi_GetAPData(int apnum, Wifi_AccessPoint * apdata) {
-	int i,j;
+        int j;
+    
 	if(!apdata) return WIFI_RETURN_PARAMERROR;
-	j=0;
-	for(i=0;i<WIFI_MAX_AP;i++){
-		if(WifiData->aplist[i].flags&WFLAG_APDATA_ACTIVE) {
-			if(j==apnum) {
-				while(Spinlock_Acquire(WifiData->aplist[i])!=SPINLOCK_OK);
-				{
-					// additionally calculate average RSSI here
-					WifiData->aplist[i].rssi=0;
-					for(j=0;j<8;j++) {
-						WifiData->aplist[i].rssi+=WifiData->aplist[i].rssi_past[j];
-					}
-					WifiData->aplist[i].rssi = WifiData->aplist[i].rssi >> 3;
-					*apdata = WifiData->aplist[i]; // yay for struct copy!
-					Spinlock_Release(WifiData->aplist[i]);
-					return WIFI_RETURN_OK;
-				}
-			}
-			j++;
+
+	
+	if(WifiData->aplist[apnum].flags&WFLAG_APDATA_ACTIVE) {
+	    while(Spinlock_Acquire(WifiData->aplist[apnum])!=SPINLOCK_OK);
+	    {
+		// additionally calculate average RSSI here
+		WifiData->aplist[apnum].rssi=0;
+		for(j=0;j<8;j++) {
+		    WifiData->aplist[apnum].rssi+=WifiData->aplist[apnum].rssi_past[j];
 		}
+		WifiData->aplist[apnum].rssi = WifiData->aplist[apnum].rssi >> 3;
+		*apdata = WifiData->aplist[apnum]; // yay for struct copy!
+		Spinlock_Release(WifiData->aplist[apnum]);
+		return WIFI_RETURN_OK;
+	    }
 	}
+
 	return WIFI_RETURN_ERROR;
 }
 
