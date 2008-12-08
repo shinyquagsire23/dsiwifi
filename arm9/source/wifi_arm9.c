@@ -615,7 +615,7 @@ int Wifi_AssocStatus() {
 				int n,i;
 				for(n=0;n<3;n++) if(!(WifiData->wfc_enable[n]&0x80)) break;
 				Wifi_AccessPoint ap;
-				n=Wifi_FindMatchingAP(n,WifiData->wfc_ap,&ap);
+				n=Wifi_FindMatchingAP(n,(Wifi_AccessPoint*)WifiData->wfc_ap,(Wifi_AccessPoint*)&ap);
 				if(n!=-1) {
 #ifdef WIFI_USE_TCP_SGIP
 					Wifi_SetIP(WifiData->wfc_config[n][0],WifiData->wfc_config[n][1],WifiData->wfc_config[n][2],WifiData->wfc_config[n][3],WifiData->wfc_config[n][4]);
