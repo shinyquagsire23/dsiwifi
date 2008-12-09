@@ -328,6 +328,9 @@ extern void Wifi_Sync();
 //  WifiSyncHandler sh:    Pointer to the function to be called for notification.
 extern void Wifi_SetSyncHandler(WifiSyncHandler sh);
 
+#define WFC_CONNECT	true
+#define INIT_ONLY	false
+
 extern bool Wifi_InitDefault(bool useFirmwareSettings);
 
 #ifdef __cplusplus
