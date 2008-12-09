@@ -32,6 +32,7 @@ SOFTWARE.
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #ifdef WIFI_USE_TCP_SGIP
 
@@ -920,15 +921,18 @@ u32 Wifi_GetIP() {
 	return 0;
 }
 
-unsigned long Wifi_GetIPInfo(unsigned long * pGateway,unsigned long * pSnmask,unsigned long * pDns1,unsigned long * pDns2) {
+struct in_addr Wifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2) {
+	struct in_addr ip = { 0 };
 	if(wifi_hw) {
-		if(pGateway) *pGateway=wifi_hw->gateway;
-		if(pSnmask) *pSnmask=wifi_hw->snmask;
-		if(pDns1) *pDns1=wifi_hw->dns[0];
-		if(pDns2) *pDns2=wifi_hw->dns[1];
-		return wifi_hw->ipaddr;
+		if(pGateway) pGateway->s_addr=wifi_hw->gateway;
+		if(pSnmask) pSnmask->s_addr=wifi_hw->snmask;
+		if(pDns1) pDns1->s_addr=wifi_hw->dns[0];
+		if(pDns2) pDns2->s_addr=wifi_hw->dns[1];
+
+		ip.s_addr = wifi_hw->ipaddr;
+
 	}
-	return 0;
+	return ip;
 }
 
 

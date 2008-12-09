@@ -266,12 +266,12 @@ extern void Wifi_Timer(int num_ms);
 extern unsigned long Wifi_GetIP(); // get local ip
 
 // Wifi_GetIPInfo: (values may not be valid before connecting to an AP, or setting the IP manually.)
-//  unsigned long * pGateway:	pointer to receive the currently configured gateway IP
-//  unsigned long * pSnmask:	pointer to receive the currently configured subnet mask
-//  unsigned long * pDns1:		pointer to receive the currently configured primary DNS server IP
-//  unsigned long * pDns2:		pointer to receive the currently configured secondary DNS server IP
+//  struct in_addr * pGateway:	pointer to receive the currently configured gateway IP
+//  struct in_addr * pSnmask:	pointer to receive the currently configured subnet mask
+//  struct in_addr * pDns1:		pointer to receive the currently configured primary DNS server IP
+//  struct in_addr * pDns2:		pointer to receive the currently configured secondary DNS server IP
 //  Returns:					The current IP address of the DS 
-extern unsigned long Wifi_GetIPInfo(unsigned long * pGateway,unsigned long * pSnmask,unsigned long * pDns1,unsigned long * pDns2);
+extern struct in_addr Wifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2);
 
 // Wifi_SetIP: Set the DS's IP address and other IP configuration information.
 //  unsigned long IPaddr:		The new IP address (NOTE! if this value is zero, the IP, the gateway, and the subnet mask will be allocated via DHCP)
@@ -328,7 +328,7 @@ extern void Wifi_Sync();
 //  WifiSyncHandler sh:    Pointer to the function to be called for notification.
 extern void Wifi_SetSyncHandler(WifiSyncHandler sh);
 
-extern bool Wifi_Init_Default(bool useFirmwareSettings);
+extern bool Wifi_InitDefault(bool useFirmwareSettings);
 
 #ifdef __cplusplus
 };
