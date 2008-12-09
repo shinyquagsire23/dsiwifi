@@ -130,6 +130,16 @@ enum WIFI_ASSOCSTATUS {
 	ASSOCSTATUS_CANNOTCONNECT, // error in connecting... (COMPLETE if Wifi_ConnectAP was called to start)
 };
 
+const char * ASSOCSTATUS_STRINGS[] = {
+	"ASSOCSTATUS_DISCONNECTED",		// not *trying* to connect
+	"ASSOCSTATUS_SEARCHING",		// data given does not completely specify an AP, looking for AP that matches the data.
+	"ASSOCSTATUS_AUTHENTICATING",	// connecting...
+	"ASSOCSTATUS_ASSOCIATING",		// connecting...
+	"ASSOCSTATUS_ACQUIRINGDHCP",	// connected to AP, but getting IP data from DHCP
+	"ASSOCSTATUS_ASSOCIATED",		// Connected!
+	"ASSOCSTATUS_CANNOTCONNECT",	// error in connecting...
+};
+
 // most user code will never need to know about the WIFI_TXHEADER or WIFI_RXHEADER
 typedef struct WIFI_TXHEADER {
 	u16 enable_flags;
@@ -330,6 +340,7 @@ extern void Wifi_SetSyncHandler(WifiSyncHandler sh);
 
 #define WFC_CONNECT	true
 #define INIT_ONLY	false
+
 
 extern bool Wifi_InitDefault(bool useFirmwareSettings);
 

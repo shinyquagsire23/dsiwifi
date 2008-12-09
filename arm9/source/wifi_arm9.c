@@ -448,10 +448,12 @@ int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * we
 	Wifi_DisconnectAP();
 
 	wifi_connect_state=0;
+
 	WifiData->wepmode9=wepmode; // copy data
 	WifiData->wepkeyid9=wepkeyid;
 
-	if (wepkey) {
+	if(wepmode != WEPMODE_NONE && wepkey)
+	{
 		for(i=0;i<20;i++) {
 			WifiData->wepkey9[i]=wepkey[i];
 		}
@@ -459,6 +461,7 @@ int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * we
 
 	i=Wifi_FindMatchingAP(1,apdata,&ap);
 	if(i==0) {
+
 		Wifi_CopyMacAddr(WifiData->bssid9, ap.bssid);
 		Wifi_CopyMacAddr(WifiData->apmac9, ap.bssid);
 		WifiData->ssid9[0]=ap.ssid_len;
