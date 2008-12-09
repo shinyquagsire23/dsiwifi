@@ -437,6 +437,7 @@ int Wifi_FindMatchingAP(int numaps, Wifi_AccessPoint * apdata, Wifi_AccessPoint 
 
 int wifi_connect_state = 0; // -1==error, 0==searching, 1==associating, 2==dhcp'ing, 3==done, 4=searching wfc data
 Wifi_AccessPoint wifi_connect_point;
+
 int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * wepkey) {
 	int i;
 	Wifi_AccessPoint ap;
@@ -449,10 +450,12 @@ int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * we
 	wifi_connect_state=0;
 	WifiData->wepmode9=wepmode; // copy data
 	WifiData->wepkeyid9=wepkeyid;
-	for(i=0;i<20;i++) {
-		WifiData->wepkey9[i]=wepkey[i];
-	}
 
+	if (wepkey) {
+		for(i=0;i<20;i++) {
+			WifiData->wepkey9[i]=wepkey[i];
+		}
+	}
 
 	i=Wifi_FindMatchingAP(1,apdata,&ap);
 	if(i==0) {
@@ -922,7 +925,7 @@ u32 Wifi_GetIP() {
 }
 
 struct in_addr Wifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2) {
-	struct in_addr ip = { 0 };
+	struct in_addr ip = { INADDR_NONE };
 	if(wifi_hw) {
 		if(pGateway) pGateway->s_addr=wifi_hw->gateway;
 		if(pSnmask) pSnmask->s_addr=wifi_hw->snmask;
