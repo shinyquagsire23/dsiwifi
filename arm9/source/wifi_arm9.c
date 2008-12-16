@@ -41,6 +41,15 @@ SOFTWARE.
 
 sgIP_Hub_HWInterface * wifi_hw;
 
+const char * ASSOCSTATUS_STRINGS[] = {
+	"ASSOCSTATUS_DISCONNECTED",		// not *trying* to connect
+	"ASSOCSTATUS_SEARCHING",		// data given does not completely specify an AP, looking for AP that matches the data.
+	"ASSOCSTATUS_AUTHENTICATING",	// connecting...
+	"ASSOCSTATUS_ASSOCIATING",		// connecting...
+	"ASSOCSTATUS_ACQUIRINGDHCP",	// connected to AP, but getting IP data from DHCP
+	"ASSOCSTATUS_ASSOCIATED",		// Connected!
+	"ASSOCSTATUS_CANNOTCONNECT",	// error in connecting...
+};
 
 int sgIP_DisableInterrupts() {
 	int a;
