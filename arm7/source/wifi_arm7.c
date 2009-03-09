@@ -42,7 +42,10 @@ int chdata_save5 = 0;
 //
 char FlashData[512];
 void Read_Flash(int address, char * destination, int length) {
-	int i;
+	int i, tIME;
+	tIME=REG_IME;
+	REG_IME=0;  // Disable interrupts when reading from flash, prevent other things from corrupting the dataflow.
+
 	while(SPI_CR&0x80);
 	SPI_CR=0x8900;
 	SPI_DATA=3;
@@ -59,6 +62,8 @@ void Read_Flash(int address, char * destination, int length) {
 		destination[i]=SPI_DATA;
 	}
 	SPI_CR=0;
+
+	REG_IME=tIME;
 }
 
 void InitFlashData() {
@@ -1425,6 +1430,7 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 					if(seglen==0) { // we couldn't find an existing record
 						if(segtype==255) {
 							j=0;
+							segtype=0; // prevent heap corruption if wifilib detects >WIFI_MAX_AP APs before entering scan mode.
 							for(i=0;i<WIFI_MAX_AP;i++) {
 								if(WifiData->aplist[i].timectr>j) {
 									j=WifiData->aplist[i].timectr;
