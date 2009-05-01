@@ -4,9 +4,9 @@ endif
  
 export TOPDIR	:=	$(CURDIR)
 
-export DSWIFI_MAJOR		:= 0
-export DSWIFI_MINOR		:= 3
-export DSWIFI_REVISION	:= 6
+export DSWIFI_MAJOR	:= 0
+export DSWIFI_MINOR	:= 3
+export DSWIFI_REVISION	:= 7
 
 VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)
  
