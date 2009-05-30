@@ -41,33 +41,9 @@ int chdata_save5 = 0;
 //  Flash support functions
 //
 char FlashData[512];
-void Read_Flash(int address, char * destination, int length) {
-	int i, tIME;
-	tIME=REG_IME;
-	REG_IME=0;  // Disable interrupts when reading from flash, prevent other things from corrupting the dataflow.
-
-	while(SPI_CR&0x80);
-	SPI_CR=0x8900;
-	SPI_DATA=3;
-	while(SPI_CR&0x80);
-	SPI_DATA=(address>>16)&255;
-	while(SPI_CR&0x80);
-	SPI_DATA=(address>>8)&255;
-	while(SPI_CR&0x80);
-	SPI_DATA=(address)&255;
-	while(SPI_CR&0x80);
-	for(i=0;i<length;i++) {
-		SPI_DATA=0;
-		while(SPI_CR&0x80);
-		destination[i]=SPI_DATA;
-	}
-	SPI_CR=0;
-
-	REG_IME=tIME;
-}
 
 void InitFlashData() {
-	Read_Flash(0,FlashData,512);
+	readFirmware(0,FlashData,512);
 }
 
 int ReadFlashByte(int address) {
@@ -128,7 +104,7 @@ void GetWfcSettings() {
 	u32 wfcBase = ReadFlashBytes(0x20, 2) * 8 - 0x400;
 	for(i=0;i<3;i++) WifiData->wfc_enable[i]=0;
 	for(i=0;i<3;i++) {
-		Read_Flash( wfcBase +(i<<8),(char *)data,256);
+		readFirmware( wfcBase +(i<<8),(char *)data,256);
 		// check for validity (crc16)
 		if(crc16_slow(data,256)==0x0000 && data[0xE7]==0x00) { // passed the test
 			WifiData->wfc_enable[c] = 0x80 | (data[0xE6]&0x0F);
@@ -706,9 +682,9 @@ void Wifi_Update() {
 				Wifi_SetWepKey((void *)WifiData->wepkey7);
 				Wifi_SetWepMode(WifiData->wepmode7);
 				// latch BSSID
-				W_BSSID[0]= ((u16 *)WifiData->bssid7)[0];
-				W_BSSID[1]= ((u16 *)WifiData->bssid7)[1];
-				W_BSSID[2]= ((u16 *)WifiData->bssid7)[2];
+				W_BSSID[0]= WifiData->bssid7[0];
+				W_BSSID[1]= WifiData->bssid7[1];
+				W_BSSID[2]= WifiData->bssid7[2];
 				//WIFI_REG(0xD0) &= ~0x0400;
 				WIFI_REG(0xD0) |= 0x0400;
 				WifiData->reqChannel=WifiData->apchannel7;
@@ -802,9 +778,9 @@ void Wifi_Update() {
 			//	Wifi_SendPSPollFrame();
 		}
 		if(!(WifiData->reqReqFlags & WFLAG_REQ_APCONNECT)) {
-			W_BSSID[0]= ((u16 *)WifiData->bssid7)[0];
-			W_BSSID[1]= ((u16 *)WifiData->bssid7)[1];
-			W_BSSID[2]= ((u16 *)WifiData->bssid7)[2];
+			W_BSSID[0]= WifiData->bssid7[0];
+			W_BSSID[1]= WifiData->bssid7[1];
+			W_BSSID[2]= WifiData->bssid7[2];
 			//WIFI_REG(0xD0) &= ~0x0400;
 			WifiData->curMode=WIFIMODE_NORMAL;
 			WifiData->authlevel=WIFI_AUTHLEVEL_DISCONNECTED;
@@ -885,7 +861,7 @@ void Wifi_Init(u32 wifidata) {
 	// load in the WFC data.
 	GetWfcSettings();
 
-	for(i=0;i<6;i++)  WifiData->MacAddr[i]=ReadFlashByte(0x36+i);
+	for(i=0;i<3;i++)  WifiData->MacAddr[i]= ReadFlashByte(0x36+i) + (ReadFlashByte(0x36+i+1)<<8);
 
 	W_IE=0;
 	Wifi_WakeUp();
@@ -895,9 +871,9 @@ void Wifi_Init(u32 wifidata) {
 	Wifi_BBInit();
 
 	// Set Default Settings
-	W_MACADDR[0]=((u16 *)WifiData->MacAddr)[0];
-	W_MACADDR[1]=((u16 *)WifiData->MacAddr)[1];
-	W_MACADDR[2]=((u16 *)WifiData->MacAddr)[2];
+	W_MACADDR[0]=WifiData->MacAddr[0];
+	W_MACADDR[1]=WifiData->MacAddr[1];
+	W_MACADDR[2]=WifiData->MacAddr[2];
 
 	W_RETRLIMIT=7;
 	Wifi_SetMode(2);
@@ -1271,40 +1247,40 @@ int Wifi_SendAssocPacket() { // uses arm7 data in our struct
 
 int Wifi_SendNullFrame() {
 	// max size is 12+16 = 28
-	u8 data[32];
+	u16 data[16];
 	// tx header
-	((u16 *)data)[0]=0;
-	((u16 *)data)[1]=0;
-	((u16 *)data)[2]=0;
-	((u16 *)data)[3]=0;
-	((u16 *)data)[4]=WifiData->maxrate7;
-	((u16 *)data)[5]=18+4;
+	data[0]=0;
+	data[1]=0;
+	data[2]=0;
+	data[3]=0;
+	data[4]=WifiData->maxrate7;
+	data[5]=18+4;
 	// fill in packet header fields
-	((u16 *)data)[6]=0x0148;
-	((u16 *)data)[7]=0;
-	Wifi_CopyMacAddr(data+16,WifiData->apmac7);
-	Wifi_CopyMacAddr(data+22,WifiData->MacAddr);
+	data[6]=0x0148;
+	data[7]=0;
+	Wifi_CopyMacAddr(&data[8],WifiData->apmac7);
+	Wifi_CopyMacAddr(&data[11],WifiData->MacAddr);
 
-	return Wifi_TxQueue((u16 *)data, 30);
+	return Wifi_TxQueue(data, 30);
 }
 
 int Wifi_SendPSPollFrame() {
 	// max size is 12+16 = 28
-	u8 data[32];
+	u16 data[16];
 	// tx header
-	((u16 *)data)[0]=0;
-	((u16 *)data)[1]=0;
-	((u16 *)data)[2]=0;
-	((u16 *)data)[3]=0;
-	((u16 *)data)[4]=WifiData->maxrate7;
-	((u16 *)data)[5]=16+4;
+	data[0]=0;
+	data[1]=0;
+	data[2]=0;
+	data[3]=0;
+	data[4]=WifiData->maxrate7;
+	data[5]=16+4;
 	// fill in packet header fields
-	((u16 *)data)[6]=0x01A4;
-	((u16 *)data)[7]=0xC000 | W_AIDS;
-	Wifi_CopyMacAddr(data+16,WifiData->apmac7);
-	Wifi_CopyMacAddr(data+22,WifiData->MacAddr);
+	data[6]=0x01A4;
+	data[7]=0xC000 | W_AIDS;
+	Wifi_CopyMacAddr(&data[8],WifiData->apmac7);
+	Wifi_CopyMacAddr(&data[11],WifiData->MacAddr);
 
-	return Wifi_TxQueue((u16 *)data, 28);
+	return Wifi_TxQueue(data, 28);
 }
 
 int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
@@ -1634,7 +1610,9 @@ int Wifi_CreateTxFrame(int frametype, void * dest, int destlen) {
 // sync functions
 
 void Wifi_Sync() {
+	int oldIME=enterCriticalSection();
 	Wifi_Update();
+	leaveCriticalSection(oldIME);
 }
 
 void Wifi_SetSyncHandler(WifiSyncHandler sh) {
@@ -1642,8 +1620,10 @@ void Wifi_SetSyncHandler(WifiSyncHandler sh) {
 }
 
 static void wifiAddressHandler( void * address, void * userdata ) {
+	int oldIME=enterCriticalSection();
 	irqEnable(IRQ_WIFI);
 	Wifi_Init((u32)address);
+	leaveCriticalSection(oldIME);
 }
 
 static void wifiValue32Handler(u32 value, void* data) {
@@ -1656,7 +1636,6 @@ static void wifiValue32Handler(u32 value, void* data) {
 			irqEnable(IRQ_WIFI);
 			break;
 		case WIFI_SYNC:
-			REG_IME = 1;	// allow other interrupts
 			Wifi_Sync();
 			break;
 		default:

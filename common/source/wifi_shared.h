@@ -141,8 +141,8 @@ enum WIFI_STATS {
 	WSTAT_TXPACKETS,
 	WSTAT_TXBYTES,
 	WSTAT_TXDATABYTES,
-   WSTAT_ARM7_UPDATES,
-   WSTAT_DEBUG,
+	WSTAT_ARM7_UPDATES,
+	WSTAT_DEBUG,
 	// harware stats (function mostly unknown.)
 	WSTAT_HW_1B0,WSTAT_HW_1B1,WSTAT_HW_1B2,WSTAT_HW_1B3,WSTAT_HW_1B4,WSTAT_HW_1B5,WSTAT_HW_1B6,WSTAT_HW_1B7,	
 	WSTAT_HW_1B8,WSTAT_HW_1B9,WSTAT_HW_1BA,WSTAT_HW_1BB,WSTAT_HW_1BC,WSTAT_HW_1BD,WSTAT_HW_1BE,WSTAT_HW_1BF,	
@@ -225,17 +225,18 @@ typedef struct WIFI_MAINSTRUCT {
 	u16 curChannel, reqChannel;
 	u16 curMode, reqMode;
 	u16 authlevel,authctr;
-	u32 flags9, flags7, reqPacketFlags;
+	vu32 flags9, flags7;
+	u32 reqPacketFlags;
 	u16 curReqFlags, reqReqFlags;
 	u32 counter7,bootcounter7;
-	char MacAddr[6];
+	u16 MacAddr[3];
 	u16 authtype;
 	u16 iptype,ipflags;
 	u32 ip,snmask,gateway;
 
 	// current AP data
 	char ssid7[34],ssid9[34];
-	u8 bssid7[6], bssid9[6];
+	u16 bssid7[3], bssid9[3];
 	u8 apmac7[6], apmac9[6];
 	char wepmode7, wepmode9;
 	char wepkeyid7, wepkeyid9;

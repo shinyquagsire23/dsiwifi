@@ -51,15 +51,6 @@ const char * ASSOCSTATUS_STRINGS[] = {
 	"ASSOCSTATUS_CANNOTCONNECT",	// error in connecting...
 };
 
-int sgIP_DisableInterrupts() {
-	int a;
-	a=REG_IME;
-	REG_IME=0;
-	return a;
-}
-void sgIP_RestoreInterrupts(int old_ime) {
-	REG_IME=old_ime;
-}
 
 void sgIP_IntrWaitEvent() {
  //  __asm( ".ARM\n swi 0x060000\n" );
@@ -995,11 +986,13 @@ u32 Wifi_GetStats(int statnum) {
 }
 
 
-//////////////////////////////////////////////////////////////////////////
+//---------------------------------------------------------------------------------
 // sync functions
 
+//---------------------------------------------------------------------------------
 void Wifi_Sync() {
-   Wifi_Update();
+//---------------------------------------------------------------------------------
+	Wifi_Update();
 }
 
 
@@ -1010,14 +1003,14 @@ void Wifi_Sync() {
 //---------------------------------------------------------------------------------
 void Timer_50ms(void) {
 //---------------------------------------------------------------------------------
-   Wifi_Timer(50);
+	Wifi_Timer(50);
 }
 
 // notification function to send fifo message to arm7
 //---------------------------------------------------------------------------------
 void arm9_synctoarm7() { 
 //---------------------------------------------------------------------------------
-   fifoSendValue32(FIFO_DSWIFI, WIFI_SYNC);
+	fifoSendValue32(FIFO_DSWIFI, WIFI_SYNC);
 }
 
 //---------------------------------------------------------------------------------
@@ -1033,46 +1026,44 @@ void wifiValue32Handler(u32 value, void* data) {
 	}
 }
 
-
 //---------------------------------------------------------------------------------
 bool Wifi_InitDefault(bool useFirmwareSettings) {
 //---------------------------------------------------------------------------------
-   fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
+	fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
 
-   u32 wifi_pass = Wifi_Init(WIFIINIT_OPTION_USELED);
+	u32 wifi_pass = Wifi_Init(WIFIINIT_OPTION_USELED);
 
-   if(!wifi_pass) return false;
+	if(!wifi_pass) return false;
 
-   irqSet(IRQ_TIMER3, Timer_50ms); // setup timer IRQ
-   irqEnable(IRQ_TIMER3);
+	irqSet(IRQ_TIMER3, Timer_50ms); // setup timer IRQ
+	irqEnable(IRQ_TIMER3);
 
-   Wifi_SetSyncHandler(arm9_synctoarm7); // tell wifi lib to use our handler to notify arm7
+	Wifi_SetSyncHandler(arm9_synctoarm7); // tell wifi lib to use our handler to notify arm7
 
-   // set timer3
-   TIMER3_DATA = -6553; // 6553.1 * 256 cycles = ~50ms;
-   TIMER3_CR = 0x00C2; // enable, irq, 1/256 clock
+	// set timer3
+	TIMER3_DATA = -6553; // 6553.1 * 256 cycles = ~50ms;
+	TIMER3_CR = 0x00C2; // enable, irq, 1/256 clock
 
-   fifoSendAddress(FIFO_DSWIFI, (void *)wifi_pass);
+	fifoSendAddress(FIFO_DSWIFI, (void *)wifi_pass);
 
+	while(Wifi_CheckInit()==0) {
+		swiWaitForVBlank();
+	}
 
-   while(Wifi_CheckInit()==0) {
+	if(useFirmwareSettings) {  
+		int wifiStatus = ASSOCSTATUS_DISCONNECTED;
 
-	  swiWaitForVBlank();
-   }
+		Wifi_AutoConnect(); // request connect
 
-   if(useFirmwareSettings) {  
-      int wifiStatus = ASSOCSTATUS_DISCONNECTED;
+		while(wifiStatus != ASSOCSTATUS_ASSOCIATED) {
+			wifiStatus = Wifi_AssocStatus(); // check status
 
-      Wifi_AutoConnect(); // request connect
+			if(wifiStatus == ASSOCSTATUS_CANNOTCONNECT) return false;
+			swiWaitForVBlank();
 
-      while(wifiStatus != ASSOCSTATUS_ASSOCIATED) {
-         wifiStatus = Wifi_AssocStatus(); // check status
+		}  
+	}
 
-         if(wifiStatus == ASSOCSTATUS_CANNOTCONNECT) return false;
-
-      }  
-   }
-
-   return true;
+	return true;
 }
 

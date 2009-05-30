@@ -222,25 +222,23 @@ extern int sgIP_errno;
 
 //////////////////////////////////////////////////////////////////////////
 // External option-based dependencies
-
+#include <nds/interrupts.h>
 
 #ifdef SGIP_INTERRUPT_THREADING_MODEL
 #ifdef __cplusplus
 extern "C" {
 #endif
-	extern int sgIP_DisableInterrupts();
-	extern void sgIP_RestoreInterrupts(int);
-   extern void sgIP_IntrWaitEvent();
+   void sgIP_IntrWaitEvent();
 #ifdef __cplusplus
 };
 #endif
 #define SGIP_INTR_PROTECT() \
 	int tIME; \
-	tIME=sgIP_DisableInterrupts()
+	tIME=enterCriticalSection()
 #define SGIP_INTR_REPROTECT() \
-	tIME=sgIP_DisableInterrupts()
+	tIME=enterCriticalSection()
 #define SGIP_INTR_UNPROTECT() \
-	sgIP_RestoreInterrupts(tIME)
+	leaveCriticalSection(tIME)
 #define SGIP_WAITEVENT() \
    sgIP_IntrWaitEvent()
 #else // !SGIP_INTERRUPT_THREADING_MODEL
