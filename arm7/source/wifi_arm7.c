@@ -1610,9 +1610,7 @@ int Wifi_CreateTxFrame(int frametype, void * dest, int destlen) {
 // sync functions
 
 void Wifi_Sync() {
-	int oldIME=enterCriticalSection();
 	Wifi_Update();
-	leaveCriticalSection(oldIME);
 }
 
 void Wifi_SetSyncHandler(WifiSyncHandler sh) {
@@ -1620,10 +1618,8 @@ void Wifi_SetSyncHandler(WifiSyncHandler sh) {
 }
 
 static void wifiAddressHandler( void * address, void * userdata ) {
-	int oldIME=enterCriticalSection();
 	irqEnable(IRQ_WIFI);
 	Wifi_Init((u32)address);
-	leaveCriticalSection(oldIME);
 }
 
 static void wifiValue32Handler(u32 value, void* data) {
