@@ -53,12 +53,12 @@ clean:
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include makefile dswifi_license.txt 
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include makefile dswifi_license.txt 
 
 #-------------------------------------------------------------------------------
 dist-bin: all
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* -cjf dswifi-$(VERSION).tar.bz2 include lib dswifi_license.txt
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-$(VERSION).tar.bz2 include lib dswifi_license.txt
 
 dist: dist-bin dist-src
 
