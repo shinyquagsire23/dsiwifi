@@ -214,7 +214,7 @@ sgIP_DNS_Hostent * sgIP_DNS_GenerateHostentIP(unsigned long ipaddr) {
    addr_list[1]=0;
 
    dnsrecord_hostent.h_addr_list=(char **)addr_list;
-   dnsrecord_hostent.h_addrtype=1;
+   dnsrecord_hostent.h_addrtype=AF_INET;
    dnsrecord_hostent.h_aliases=(char **)alias_list;
    dnsrecord_hostent.h_length=4;
    dnsrecord_hostent.h_name=ipaddr_alias;
@@ -233,7 +233,7 @@ sgIP_DNS_Hostent * sgIP_DNS_GenerateHostent(sgIP_DNS_Record * dnsrec) {
    }
    addr_list[i]=0;
    dnsrecord_hostent.h_addr_list=(char **)addr_list;
-   dnsrecord_hostent.h_addrtype=dnsrecord_return.addrclass;
+   dnsrecord_hostent.h_addrtype=AF_INET; //dnsrecord_return.addrclass; // record class is probably AF_IN, not IN_ADDR
    dnsrecord_hostent.h_aliases=(char **)alias_list;
    dnsrecord_hostent.h_length=dnsrecord_return.addrlen;
    dnsrecord_hostent.h_name=(char *)dnsrecord_return.name;
