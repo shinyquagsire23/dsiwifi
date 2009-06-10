@@ -861,7 +861,7 @@ void Wifi_Init(u32 wifidata) {
 	// load in the WFC data.
 	GetWfcSettings();
 
-	for(i=0;i<3;i++)  WifiData->MacAddr[i]= ReadFlashByte(0x36+i) + (ReadFlashByte(0x36+i+1)<<8);
+	ReadFlashBytes(WifiData->MacAddr,6);
 
 	W_IE=0;
 	Wifi_WakeUp();

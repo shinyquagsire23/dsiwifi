@@ -969,9 +969,7 @@ int Wifi_GetData(int datatype, int bufferlen, unsigned char * buffer) {
 	switch(datatype) {
 	case WIFIGETDATA_MACADDRESS:
 		if(bufferlen<6 || !buffer) return -1;
-		for(i=0;i<6;i++) {
-			buffer[i]=WifiData->MacAddr[i];
-		}
+		memcpy(buffer,(void *)WifiData->MacAddr,6);
 		return 6;
 	case WIFIGETDATA_NUMWFCAPS:
 		for(i=0;i<3;i++) if(!(WifiData->wfc_enable[i]&0x80)) break;
