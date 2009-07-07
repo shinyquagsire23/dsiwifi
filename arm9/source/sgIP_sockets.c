@@ -140,7 +140,11 @@ int connect(int socket, const struct sockaddr * addr, int addr_len) {
 			if(i==SGIP_TCP_STATE_ESTABLISHED || i==SGIP_TCP_STATE_CLOSE_WAIT) {retval=0; break;}
 			if(i==SGIP_TCP_STATE_CLOSED || i==SGIP_TCP_STATE_UNUSED || i==SGIP_TCP_STATE_LISTEN || i==SGIP_TCP_STATE_NODATA) 
 			{	retval=SGIP_ERROR(((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->errorcode); break; }
-			if(socketlist[socket].flags&SGIP_SOCKET_FLAG_NONBLOCKING) break;
+			if(socketlist[socket].flags&SGIP_SOCKET_FLAG_NONBLOCKING) {
+				retval = -1;
+				SGIP_ERROR(EINPROGRESS);
+				break;
+			}
 			SGIP_INTR_UNPROTECT();
 			SGIP_WAITEVENT();
 			SGIP_INTR_REPROTECT();
