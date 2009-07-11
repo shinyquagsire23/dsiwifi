@@ -784,8 +784,8 @@ int Wifi_Interface_Init(sgIP_Hub_HWInterface * hw) {
 }
 
 void Wifi_Timer(int num_ms) {
-   Wifi_Update();
-   sgIP_Timer(num_ms);
+	Wifi_Update();
+	sgIP_Timer(num_ms);
 }
 
 #endif
@@ -990,7 +990,10 @@ u32 Wifi_GetStats(int statnum) {
 //---------------------------------------------------------------------------------
 void Wifi_Sync() {
 //---------------------------------------------------------------------------------
+	int oldIE = REG_IE;
+	REG_IE &= ~IRQ_TIMER3;
 	Wifi_Update();
+	REG_IE = oldIE;
 }
 
 
