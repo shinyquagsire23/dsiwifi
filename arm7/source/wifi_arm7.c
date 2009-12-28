@@ -1307,6 +1307,8 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 				u16 curloc;
 				u32 datalen;
 				u16 i,j,compatible;
+				u16 num_uni_ciphers;
+
 				datalen=packetheader.byteLength;
 				if(datalen>512) datalen=512;
 				Wifi_MACCopy((u16 *)data,macbase,12,(datalen+1)&~1);
@@ -1325,31 +1327,82 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 					if(curloc>=datalen) break;
 					segtype=data[curloc++];
 					seglen=data[curloc++];
+
 					switch(segtype) {
-		case 0: // SSID element
-			ptr_ssid=curloc-2;
-			break;
-		case 1: // rate set (make sure we're compatible)
-			compatible=0;
-			maxrate=0;
-			j=0;
-			for(i=0;i<seglen;i++) {
-				if((data[curloc+i]&0x7F)>maxrate) maxrate=data[curloc+i]&0x7F;
-				if(j<15 && data[curloc+i]&0x80) rateset[j++]=data[curloc+i];
-			}
-			for(i=0;i<seglen;i++) {
-				if(data[curloc+i]==0x82 || data[curloc+i]==0x84) compatible=1;  // 1-2mbit, fully compatible
-				else if(data[curloc+i]==0x8B || data[curloc+i]==0x96) compatible=2; // 5.5,11mbit, have to fake our way in.
-				else if(data[curloc+i]&0x80) { compatible=0; break; }
-			}
-			rateset[j]=0;
-			break;
-		case 3: // DS set (current channel)
-			channel=data[curloc];
-			break;
-		case 48: // RSN(A) field- WPA enabled.
-			wpamode=1;
-			break;
+						case 0: // SSID element
+							ptr_ssid=curloc-2;
+							break;
+						case 1: // rate set (make sure we're compatible)
+							compatible=0;
+							maxrate=0;
+							j=0;
+							for(i=0;i<seglen;i++) {
+								if((data[curloc+i]&0x7F)>maxrate) maxrate=data[curloc+i]&0x7F;
+								if(j<15 && data[curloc+i]&0x80) rateset[j++]=data[curloc+i];
+							}
+							for(i=0;i<seglen;i++) {
+								if(data[curloc+i]==0x82 || data[curloc+i]==0x84) compatible=1;  // 1-2mbit, fully compatible
+								else if(data[curloc+i]==0x8B || data[curloc+i]==0x96) compatible=2; // 5.5,11mbit, have to fake our way in.
+								else if(data[curloc+i]&0x80) { compatible=0; break; }
+							}
+							rateset[j]=0;
+							break;
+						case 3: // DS set (current channel)
+							channel=data[curloc];
+							break;
+						case 48: // RSN(A) field- WPA enabled.
+							j = curloc;
+							if(seglen>=10 && data[j]==0x01 && data[j+1]==0x00) {
+								j += 6; // Skip multicast
+								num_uni_ciphers = data[j]+(data[j+1]<<8);
+								j += 2;
+								while (num_uni_ciphers-- && (j <= (curloc+seglen-4))) {
+								// check first 3 bytes
+									if (data[j]==0x00 && data[j+1]==0x0f && data[j+2]==0xAC) {
+										j += 3;
+										switch (data[j++]) {
+											case 2: //TKIP
+											case 3: //AES WRAP
+											case 4: //AES CCMP
+												wpamode=1;
+												break;
+											case 1: // WEP64
+											case 5: // WEP128
+												wepmode=1;
+												break;
+										// others : 0:NONE
+										}
+									}
+								}
+							}
+							break;
+						case 221: //vendor specific;
+							j = curloc;
+							if (seglen >= 14 && data[j]==0x00 && data[j+1]==0x50 && data[j+2]==0xF2 &&
+								data[j+3]==0x01 && data[j+4]==0x01 && data[j+5]==0x00) {// WPA IE type 1 version 1
+							// Skip multicast cipher suite
+								j += 10;
+								num_uni_ciphers = data[j]+(data[j+1]<<8);
+								j += 2;
+								while (num_uni_ciphers-- && j <= (curloc+seglen-4)) {
+								// check first 3 bytes
+									if (data[j]==0x00 && data[j+1]==0x50 && data[j+2]==0xF2) {
+										j += 3;
+ 										switch (data[j++]) {
+											case 2: //TKIP
+											case 3: //AES WRAP
+											case 4: //AES CCMP
+												wpamode=1;
+												break;
+											case 1: // WEP64
+											case 5: // WEP128
+												wepmode=1;
+										// others : 0:NONE
+										}
+									}
+								}
+							}
+							break;
 
 					} // don't care about the others.
 					curloc+=seglen;
