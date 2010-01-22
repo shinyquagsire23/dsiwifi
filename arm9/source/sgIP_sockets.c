@@ -309,6 +309,14 @@ int ioctl(int socket, long cmd, void * arg) {
 				i=((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->buf_rx_out-((sgIP_Record_TCP *)socketlist[socket].conn_ptr)->buf_rx_in;
 				if(i<0) i+=SGIP_TCP_RECEIVEBUFFERLENGTH;
 				*((int *)arg)=i;
+			} else if((socketlist[socket].flags&SGIP_SOCKET_FLAG_TYPEMASK)==SGIP_SOCKET_FLAG_TYPE_UDP) {
+				sgIP_Record_UDP *rec = (sgIP_Record_UDP *)socketlist[socket].conn_ptr;
+				if(rec->incoming_queue == 0) {
+					*((int *)arg)=0;
+				} else {
+					i = rec->incoming_queue->totallength-12;
+					*((int *)arg) = i;
+				}
 			} else {
 				retval=SGIP_ERROR(EINVAL);
 			}
