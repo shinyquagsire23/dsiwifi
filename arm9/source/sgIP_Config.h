@@ -27,6 +27,7 @@ SOFTWARE.
 #ifndef SGIP_CONFIG_H
 #define SGIP_CONFIG_H
 
+#define __LINUX_ERRNO_EXTENSIONS__
 #include <errno.h>
 
 //////////////////////////////////////////////////////////////////////////
