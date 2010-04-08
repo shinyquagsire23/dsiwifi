@@ -78,13 +78,13 @@ int sgIP_UDP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
 int sgIP_UDP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned long destip) {
 	if(!mb) return 0;
 	int chk = sgIP_UDP_CalcChecksum(mb,srcip,destip,mb->totallength);
-	if(chk!=0xFFFF) {
+	sgIP_Header_UDP * udp;
+	udp=(sgIP_Header_UDP *)mb->datastart;
+	if(chk!=0xFFFF && udp->checksum != 0) {
 		SGIP_DEBUG_MESSAGE(("UDP receive checksum incorrect"));
 		sgIP_memblock_free(mb);
 		return 0; // checksum error
 	}
-	sgIP_Header_UDP * udp;
-	udp=(sgIP_Header_UDP *)mb->datastart;
 	sgIP_Record_UDP * rec;
 	sgIP_memblock *tmb;
 	SGIP_INTR_PROTECT();
