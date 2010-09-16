@@ -31,11 +31,20 @@ SOFTWARE.
 #include "netinet/in.h"
 #include "netdb.h"
 
-#define SGIP_SOCKET_FLAG_ACTIVE				0x8000
+#define SGIP_SOCKET_FLAG_ALLOCATED			0x8000
 #define SGIP_SOCKET_FLAG_NONBLOCKING		0x4000
+#define SGIP_SOCKET_FLAG_VALID				0x2000
+#define SGIP_SOCKET_FLAG_CLOSING			0x1000
 #define SGIP_SOCKET_FLAG_TYPEMASK			0x0001
 #define SGIP_SOCKET_FLAG_TYPE_TCP			0x0001
 #define SGIP_SOCKET_FLAG_TYPE_UDP			0x0000
+#define SGIP_SOCKET_MASK_CLOSE_COUNT		0xFFFF0000
+#define SGIP_SOCKET_SHIFT_CLOSE_COUNT		16
+
+// Maybe define a better value for this in the future. But 5 minutes sounds ok.
+// TCP specification disagrees on this point, but this is a limited platform.
+// 5 minutes assuming 1000ms ticks = 300 = 0x12c
+#define SGIP_SOCKET_VALUE_CLOSE_COUNT		(0x12c << SGIP_SOCKET_SHIFT_CLOSE_COUNT)
 
 typedef struct SGIP_SOCKET_DATA {
 	unsigned int flags;
@@ -47,6 +56,7 @@ extern "C" {
 #endif
 
 	extern void sgIP_sockets_Init();
+	extern void sgIP_sockets_Timer1000ms();
 
 	// sys/socket.h
 	extern int socket(int domain, int type, int protocol);
@@ -60,6 +70,7 @@ extern "C" {
 	extern int accept(int socket, struct sockaddr * addr, int * addr_len);
 	extern int shutdown(int socket, int shutdown_type);
 	extern int closesocket(int socket);
+	extern int forceclosesocket(int socket);
 
 	extern int ioctl(int socket, long cmd, void * arg);
 

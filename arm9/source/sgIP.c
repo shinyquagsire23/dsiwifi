@@ -30,14 +30,15 @@ int sgIP_errno;
 
 // sgIP_Init(): Initializes sgIP hub and sets up a default surrounding interface (ARP and IP)
 void sgIP_Init() {
-   sgIP_timems = 0;
+	sgIP_timems = 0;
 	sgIP_memblock_Init();
 	sgIP_Hub_Init();
+	sgIP_sockets_Init();
 	sgIP_ARP_Init();
 	sgIP_TCP_Init();
 	sgIP_UDP_Init();
-   sgIP_DNS_Init();
-   sgIP_DHCP_Init();
+	sgIP_DNS_Init();
+	sgIP_DHCP_Init();
 	sgIP_Hub_AddProtocolInterface(PROTOCOL_ETHER_IP,&sgIP_IP_ReceivePacket,0);
 }
 
@@ -57,6 +58,7 @@ void sgIP_Timer(int num_ms) {
       count_1000ms-=1000;
       if(count_1000ms>=1000) count_1000ms=0;
       sgIP_DNS_Timer1000ms();
+	  sgIP_sockets_Timer1000ms();
    }
    sgIP_TCP_Timer();
 }

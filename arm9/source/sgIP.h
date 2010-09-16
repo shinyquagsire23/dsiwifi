@@ -29,6 +29,7 @@ SOFTWARE.
 
 #include "sgIP_Config.h"
 #include "sgIP_memblock.h"
+#include "sgIP_sockets.h"
 #include "sgIP_Hub.h"
 #include "sgIP_IP.h"
 #include "sgIP_ARP.h"
