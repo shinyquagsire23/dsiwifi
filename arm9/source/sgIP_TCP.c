@@ -91,7 +91,7 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
 		 if(rec->want_shutdown==1 && rec->buf_tx_out==rec->buf_tx_in) { // oblige & shutdown
 			 sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_FIN | SGIP_TCP_FLAG_ACK,0);
 			 if(rec->tcpstate==SGIP_TCP_STATE_CLOSE_WAIT) {
-				 rec->tcpstate=SGIP_TCP_STATE_CLOSING;
+				 rec->tcpstate=SGIP_TCP_STATE_LAST_ACK;
 			 } else {
 				 rec->tcpstate=SGIP_TCP_STATE_FIN_WAIT_1;
 			 }
@@ -145,6 +145,7 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
          }
          break;
       case SGIP_TCP_STATE_CLOSING: // got FIN, waiting for ACK of our FIN [resend FINACK]
+      case SGIP_TCP_STATE_LAST_ACK: // wait for ACK of our last FIN [resend FINACK]
          if(time>rec->time_backoff) {
             rec->retrycount++;
             if(rec->retrycount>=SGIP_TCP_MAXRETRY) {
@@ -157,22 +158,6 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
 			j*=2;
 			if(j>SGIP_TCP_BACKOFFMAX) j=SGIP_TCP_BACKOFFMAX;
             sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_FIN | SGIP_TCP_FLAG_ACK,0);
-			rec->time_backoff=j; // preserve backoff
-         }
-         break;
-      case SGIP_TCP_STATE_LAST_ACK: // wait for ACK of our last FIN [resend FIN]
-         if(time>rec->time_backoff) {
-            rec->retrycount++;
-            if(rec->retrycount>=SGIP_TCP_MAXRETRY) {
-               //error
-               rec->errorcode=ETIMEDOUT;
-               rec->tcpstate=SGIP_TCP_STATE_CLOSED;
-               break;
-            }
-			j=rec->time_backoff;
-			j*=2;
-			if(j>SGIP_TCP_BACKOFFMAX) j=SGIP_TCP_BACKOFFMAX;
-            sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_FIN,0);
 			rec->time_backoff=j; // preserve backoff
          }
          break;
@@ -448,6 +433,7 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
 	case SGIP_TCP_STATE_SYN_SENT: // connect initiated
       switch(tcp->tcpflags&(SGIP_TCP_FLAG_SYN|SGIP_TCP_FLAG_ACK)) {
       case SGIP_TCP_FLAG_SYN | SGIP_TCP_FLAG_ACK: // both flags set
+         // FIXME: shall check ack againts our seq instead.
          rec->ack=tcpseq+1;
          rec->sequence=tcpack;
          sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0);
@@ -555,10 +541,28 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
       break;
 
 	case SGIP_TCP_STATE_LAST_ACK: // wait for ACK of our last FIN
-      if(tcp->tcpflags&SGIP_TCP_FLAG_ACK) {
-         rec->tcpstate=SGIP_TCP_STATE_TIME_WAIT;
+      switch(tcp->tcpflags&(SGIP_TCP_FLAG_FIN|SGIP_TCP_FLAG_ACK)) {
+      case SGIP_TCP_FLAG_FIN:
+         // check sequence against receive window
+         delta1=(int)(tcpseq-rec->ack);
+         delta2=(int)(rec->rxwindow-tcpseq);
+         if(delta1<1 || delta2<0) break; // out of range, they should know better.
+
+         sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0); // resend their ack.
+         break;
+      case SGIP_TCP_FLAG_ACK: // already checked ack against appropriate window
+         rec->tcpstate=SGIP_TCP_STATE_CLOSED;
+         break;
+      case (SGIP_TCP_FLAG_FIN | SGIP_TCP_FLAG_ACK): // already checked ack, check sequence though
+         // check sequence against receive window
+         delta1=(int)(tcpseq-rec->ack);
+         delta2=(int)(rec->rxwindow-tcpseq);
+         if(delta1<1 || delta2<0) break; // out of range, they should know better.
+         rec->tcpstate=SGIP_TCP_STATE_CLOSED;
+         sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,0);
+         break;
       }
-		break;
+	  break;
 	case SGIP_TCP_STATE_TIME_WAIT: // wait to ensure remote tcp knows it's been terminated.
       if(tcp->tcpflags&SGIP_TCP_FLAG_FIN) {
          // check sequence against receive window
@@ -879,7 +883,8 @@ int sgIP_TCP_Send(sgIP_Record_TCP * rec, const char * datatosend, int datalength
 int sgIP_TCP_Recv(sgIP_Record_TCP * rec, char * databuf, int buflength, int flags) {
 	if(!rec || !databuf) return SGIP_ERROR(EINVAL); //error
    if(rec->buf_rx_in==rec->buf_rx_out) {
-      if(rec->tcpstate==SGIP_TCP_STATE_CLOSED || rec->tcpstate==SGIP_TCP_STATE_CLOSE_WAIT) {
+      if((rec->want_shutdown == 0 && rec->tcpstate>=SGIP_TCP_STATE_CLOSE_WAIT) ||
+         (rec->want_shutdown == 2 && rec->tcpstate>=SGIP_TCP_STATE_TIME_WAIT)) {
          if(rec->errorcode) return SGIP_ERROR(rec->errorcode);
          return SGIP_ERROR0(ESHUTDOWN); 
       }

@@ -100,6 +100,7 @@ wHeapRecord * wHeapStart; // start of heap
 wHeapRecord * wHeapFirst; // first free block
 void wHeapAllocInit(int size) {
     wHeapStart=(wHeapRecord *)malloc(size);
+    if (!wHeapStart) return;
     wHeapFirst=wHeapStart;
     wHeapStart->flags=WHEAP_RECORD_FLAG_UNUSED;
     wHeapStart->next=0;
@@ -321,16 +322,20 @@ int Wifi_RawTxFrame(u16 datalen, u16 rate, u16 * data) {
 	Wifi_TxHeader txh;
 	int sizeneeded;
 	int base;
-	sizeneeded=((datalen+12+4+3)/4)*2;
+	sizeneeded=(datalen+12+1)/2;
 	if(sizeneeded>Wifi_TxBufferWordsAvailable()) {WifiData->stats[WSTAT_TXQUEUEDREJECTED]++; return -1; }
+	txh.enable_flags=0;
+	txh.unknown=0;
+	txh.countup=0;
+	txh.beaconfreq=0;
 	txh.tx_rate=rate;
 	txh.tx_length=datalen+4;
 	base = WifiData->txbufOut;
 	Wifi_TxBufferWrite(base,6,(u16 *)&txh);
 	base += 6;
 	if(base>=(WIFI_TXBUFFER_SIZE/2)) base -= WIFI_TXBUFFER_SIZE/2;
-	Wifi_TxBufferWrite(base,((datalen+3)/4)*2,data);
-	base += ((datalen+3)/4)*2;
+	Wifi_TxBufferWrite(base,(datalen+1)/2,data);
+	base += (datalen+1)/2;
 	if(base>=(WIFI_TXBUFFER_SIZE/2)) base -= WIFI_TXBUFFER_SIZE/2;
 	WifiData->txbufOut=base;
 	WifiData->stats[WSTAT_TXQUEUEDPACKETS]++;
@@ -481,7 +486,7 @@ int Wifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * we
 }
 void Wifi_AutoConnect() {
 	if(!(WifiData->wfc_enable[0]&0x80)) {
-		wifi_connect_state=ASSOCSTATUS_CANNOTCONNECT;
+		wifi_connect_state=-1;
 	} else {
 		wifi_connect_state=4;
 		WifiData->reqMode=WIFIMODE_SCAN;		
@@ -541,9 +546,9 @@ int Wifi_AssocStatus() {
 			case WIFIMODE_NORMAL:
 			case WIFIMODE_DISASSOCIATE:
 				return ASSOCSTATUS_DISCONNECTED;
-            case WIFIMODE_SCAN:
-                if(WifiData->reqReqFlags&WFLAG_REQ_APCONNECT) return ASSOCSTATUS_AUTHENTICATING;
-                return ASSOCSTATUS_DISCONNECTED;
+			case WIFIMODE_SCAN:
+				if(WifiData->reqReqFlags&WFLAG_REQ_APCONNECT) return ASSOCSTATUS_AUTHENTICATING;
+				return ASSOCSTATUS_DISCONNECTED;
 			case WIFIMODE_ASSOCIATE:
 				switch(WifiData->authlevel) {
 				case WIFI_AUTHLEVEL_DISCONNECTED:
@@ -596,7 +601,7 @@ int Wifi_AssocStatus() {
 						wifi_connect_state=3;
 						WifiData->flags9|=WFLAG_ARM9_NETREADY;
 						sgIP_ARP_SendGratARP(wifi_hw);
-                        sgIP_DNS_Record_Localhost();
+						sgIP_DNS_Record_Localhost();
 						return ASSOCSTATUS_ASSOCIATED;
 					default:
 					case SGIP_DHCP_STATUS_IDLE:
@@ -622,7 +627,7 @@ int Wifi_AssocStatus() {
 				int n,i;
 				for(n=0;n<3;n++) if(!(WifiData->wfc_enable[n]&0x80)) break;
 				Wifi_AccessPoint ap;
-				n=Wifi_FindMatchingAP(n,(Wifi_AccessPoint*)WifiData->wfc_ap,(Wifi_AccessPoint*)&ap);
+				n=Wifi_FindMatchingAP(n,(Wifi_AccessPoint*)WifiData->wfc_ap,&ap);
 				if(n!=-1) {
 #ifdef WIFI_USE_TCP_SGIP
 					Wifi_SetIP(WifiData->wfc_config[n][0],WifiData->wfc_config[n][1],WifiData->wfc_config[n][2],WifiData->wfc_config[n][3],WifiData->wfc_config[n][4]);
