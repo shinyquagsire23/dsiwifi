@@ -6,7 +6,7 @@ export TOPDIR	:=	$(CURDIR)
 
 export DSWIFI_MAJOR	:= 0
 export DSWIFI_MINOR	:= 3
-export DSWIFI_REVISION	:= 15
+export DSWIFI_REVISION	:= 16
 
 VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)
  
@@ -14,7 +14,7 @@ VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)
 
 all: include/dswifi_version.h release debug 
 
-include/dswifi_version.h : makefile
+include/dswifi_version.h : Makefile
 	@echo "#ifndef _dswifi_version_h_" > $@
 	@echo "#define _dswifi_version_h_" >> $@
 	@echo >> $@
