@@ -53,7 +53,7 @@ clean:
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include makefile dswifi_license.txt 
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/Makefile arm9/source arm9/Makefile common include Makefile dswifi_license.txt 
 
 #-------------------------------------------------------------------------------
 dist-bin: all
