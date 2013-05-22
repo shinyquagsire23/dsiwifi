@@ -49,11 +49,12 @@ clean:
 #-------------------------------------------------------------------------------
 	@$(MAKE) -C arm9 clean
 	@$(MAKE) -C arm7 clean
+	@$(RM) -r dswifi-src-*.tar.bz2 dswifi-*.tar.bz2 include/dswifi_version.h lib
 
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include makefile dswifi_license.txt 
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/makefile arm9/source arm9/makefile common include Makefile dswifi_license.txt 
 
 #-------------------------------------------------------------------------------
 dist-bin: all
