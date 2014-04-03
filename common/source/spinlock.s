@@ -1,3 +1,5 @@
+	.arch	armv5te
+	.cpu	arm946e-s
 
 	.text
 	.arm 
