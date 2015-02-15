@@ -1,18 +1,18 @@
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro")
 endif
- 
+
 export TOPDIR	:=	$(CURDIR)
 
 export DSWIFI_MAJOR	:= 0
 export DSWIFI_MINOR	:= 3
-export DSWIFI_REVISION	:= 16
+export DSWIFI_REVISION	:= 17
 
 VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)
- 
+
 .PHONY: release debug clean all
 
-all: include/dswifi_version.h release debug 
+all: include/dswifi_version.h release debug
 
 include/dswifi_version.h : Makefile
 	@echo "#ifndef _dswifi_version_h_" > $@
@@ -32,7 +32,7 @@ release: lib
 #-------------------------------------------------------------------------------
 	$(MAKE) -C arm9 BUILD=release
 	$(MAKE) -C arm7 BUILD=release
- 
+
 #-------------------------------------------------------------------------------
 debug: lib
 #-------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ debug: lib
 lib:
 #-------------------------------------------------------------------------------
 	mkdir lib
- 
+
 #-------------------------------------------------------------------------------
 clean:
 #-------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ clean:
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/Makefile arm9/source arm9/Makefile common include Makefile dswifi_license.txt 
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/Makefile arm9/source arm9/Makefile common include Makefile dswifi_license.txt
 
 #-------------------------------------------------------------------------------
 dist-bin: all
