@@ -680,7 +680,17 @@ void Wifi_Interrupt() {
 
 
 
+static u8 scanlist[] = {
+	1,6,11,
+	2,3,7,8,
+	1,6,11,
+	4,5,9,10,
+	1,6,11,
+	12,13
+};
 
+static int scanlist_size = sizeof(scanlist)/sizeof(scanlist[0]);
+static int scanIndex = 0;
 
 void Wifi_Update() {
 	int i;
@@ -761,7 +771,7 @@ void Wifi_Update() {
 		}
 		if(((u16)(WIFI_REG(0xFA)-WifiData->counter7))>6) { // jump ship!
 			WifiData->counter7=WIFI_REG(0xFA);
-			WifiData->reqChannel++;
+			WifiData->reqChannel = scanlist[scanIndex];
 			{
 				int i;
 				for(i=0;i<WIFI_MAX_AP;i++) {
@@ -777,7 +787,8 @@ void Wifi_Update() {
 					}
 				}
 			}
-			if(WifiData->reqChannel==14) WifiData->reqChannel=1;
+			scanIndex++;
+			if(scanIndex == scanlist_size) scanIndex = 0;
 		}
 		break;
 	case WIFIMODE_ASSOCIATE:
