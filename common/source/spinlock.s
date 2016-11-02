@@ -1,6 +1,12 @@
+#ifdef ARM7
+	.arch	armv4t
+	.cpu	arm7tdmi
+#else
+#ifdef ARM9
 	.arch	armv5te
 	.cpu	arm946e-s
-
+#endif
+#endif
 	.text
 	.arm 
 	.global SLasm_Acquire

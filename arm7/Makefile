@@ -35,7 +35,7 @@ CFLAGS	+=	$(INCLUDE) -DARM7
 CXXFLAGS	:=	$(CFLAGS)
 
 
-ASFLAGS	:=	-g $(ARCH)
+ASFLAGS	:=	-g $(ARCH) $(INCLUDE) -DARM7
 LDFLAGS	=	-specs=ds_arm7.specs -g $(ARCH) -Wl,-Map,$(notdir $*).map
 
 
