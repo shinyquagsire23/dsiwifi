@@ -111,9 +111,10 @@ int sgIP_IP_SendViaIP(sgIP_memblock * mb, int protocol, unsigned long srcip, uns
 	iphdr->version_ihl=0x45;
 	chksum_temp=0;
 	for(i=0;i<10;i++) chksum_temp+=chksum_calc[i];
-	chksum_temp += chksum_temp>>16;
-	chksum_temp &= 0xFFFF;
+	chksum_temp = (chksum_temp & 0xFFFF) + (chksum_temp>>16);
+	chksum_temp = (chksum_temp & 0xFFFF) + (chksum_temp>>16);
 	chksum_temp = ~chksum_temp;
+	chksum_temp &= 0xFFFF;
 	if(chksum_temp==0) chksum_temp=0xFFFF;
 	iphdr->header_checksum=chksum_temp;
 	return sgIP_Hub_SendProtocolPacket(htons(0x0800),mb,destip,srcip);

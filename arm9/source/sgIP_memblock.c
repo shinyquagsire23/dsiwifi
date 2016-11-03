@@ -116,8 +116,8 @@ sgIP_memblock * sgIP_memblock_allocHW(int headersize, int packetsize) {
 				return 0;
 			}
 			tmb->next=t;
-			t->totallength=mb->totallength;
-			t->datastart=mb->reserved; // no header on blocks after the first.
+			t->totallength=tmb->totallength;
+			t->datastart=t->reserved; // no header on blocks after the first.
 			t->next=0;
 			t->thislength=SGIP_MEMBLOCK_INTERNALSIZE;
 			if(t->thislength+totlen>=mb->totallength) {
@@ -196,21 +196,19 @@ void sgIP_memblock_exposeheader(sgIP_memblock * mb, int change) {
 }
 void sgIP_memblock_trimsize(sgIP_memblock * mb, int newsize) {
 	int lentot;
-	if(mb) {
-		mb->totallength=newsize;
-		lentot=0;
-		while(mb) {
-			lentot+=mb->thislength;
-			if(lentot>newsize) {
-				mb->thislength-=(lentot-newsize);
-				if(mb->next) sgIP_memblock_free(mb->next);
-				mb->next=0;
-				return;
-			} else {
-				mb=mb->next;
-			}
-		}
-	}
+    lentot=0;
+    while(mb) {
+        mb->totallength=newsize;
+        lentot+=mb->thislength;
+        if(lentot>newsize) {
+            mb->thislength-=(lentot-newsize);
+            if(mb->next) sgIP_memblock_free(mb->next);
+            mb->next=0;
+            return;
+        } else {
+            mb=mb->next;
+        }
+    }
 }
 
 
@@ -227,7 +225,7 @@ int sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_lengt
 			offset+=2;
 			chksum_length-=2;
 		}
-      chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
+        chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
 		if(startbyte+offset<mb->thislength && chksum_length>0) {
 			chksum_temp+= ((unsigned char *)mb->datastart)[startbyte+offset];
 			if(chksum_length==1) break;
@@ -242,9 +240,16 @@ int sgIP_memblock_IPChecksum(sgIP_memblock * mb, int startbyte, int chksum_lengt
 			offset++;
 			chksum_length--;
 		}
+        else
+        {
+			offset=0;
+			startbyte=0;
+			mb=mb->next;
+			if(!mb) break;
+        }
 	}
-   chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
-   chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
+    chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
+    chksum_temp= (chksum_temp&0xFFFF) +(chksum_temp>>16);
 	return chksum_temp;
 }
 int sgIP_memblock_CopyToLinear(sgIP_memblock * mb, void * dest_buf, int startbyte, int copy_length) {

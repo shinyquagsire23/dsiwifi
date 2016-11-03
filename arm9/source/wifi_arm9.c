@@ -885,7 +885,7 @@ void Wifi_Update() {
 					mb = sgIP_memblock_allocHW(14,len-8-hdrlen);
 					if(mb) {
 						if(base2>=(WIFI_RXBUFFER_SIZE/2)) base2-=(WIFI_RXBUFFER_SIZE/2);
-						Wifi_RxRawReadPacket(base2,(len-8-hdrlen)&(~1),((u16 *)mb->datastart)+7);
+						Wifi_RxRawReadPacket(base2,(len-8-hdrlen)&(~1),((u16 *)mb->datastart)+7); // Todo: Improve this to read correctly  in the case that the packet buffer is fragmented
 						if(len&1) ((u8 *)mb->datastart)[len+14-1-8-hdrlen]=Wifi_RxReadOffset(base2,((len-8-hdrlen)/2))&255;
 						Wifi_CopyMacAddr(mb->datastart,framehdr+8); // copy dest
 						if(Wifi_RxReadOffset(base,6)&0x0200) { // from DS set?
@@ -1061,9 +1061,9 @@ bool Wifi_InitDefault(bool useFirmwareSettings) {
 
 		Wifi_AutoConnect(); // request connect
 
-		while(wifiStatus != ASSOCSTATUS_ASSOCIATED) {
+		while(true) {
 			wifiStatus = Wifi_AssocStatus(); // check status
-
+            if(wifiStatus == ASSOCSTATUS_ASSOCIATED) break;
 			if(wifiStatus == ASSOCSTATUS_CANNOTCONNECT) return false;
 			swiWaitForVBlank();
 

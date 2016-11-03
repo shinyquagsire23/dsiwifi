@@ -86,7 +86,7 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
 			rec->time_backoff=j; // preserve backoff
          }
          break;
-	  case SGIP_TCP_STATE_CLOSE_WAIT: // got FIN, wait for user code to close socket & send FIN [do nothing]
+	  case SGIP_TCP_STATE_CLOSE_WAIT: // got FIN, wait for user code to close socket & send FIN [Finish sending data in buffer]
       case SGIP_TCP_STATE_ESTABLISHED: // syns have been exchanged [check for data in buffer, send]
 		 if(rec->want_shutdown==1 && rec->buf_tx_out==rec->buf_tx_in) { // oblige & shutdown
 			 sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_FIN | SGIP_TCP_FLAG_ACK,0);
@@ -106,10 +106,10 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
                j=rec->buf_tx_out-rec->buf_tx_in;
                if(j<0) j+=SGIP_TCP_TRANSMITBUFFERLENGTH;
                i=(int)(rec->txwindow-rec->sequence);
-               if(j>i) j=i;
+               if(j<i) j=i;
                i=sgIP_IP_MaxContentsSize(rec->destip)-20; // max tcp data size
                if(j>i) j=i;
-               sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,i);
+               sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,j);
                break;
             }
          }
@@ -120,6 +120,8 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
             if(j>i) j=i;
             i=sgIP_IP_MaxContentsSize(rec->destip)-20; // max tcp data size
             if(j>i) j=i;
+            i=j;
+            
 			j=rec->time_backoff;
 			j*=2;
 			if(j>SGIP_TCP_BACKOFFMAX) j=SGIP_TCP_BACKOFFMAX;
@@ -214,8 +216,8 @@ int sgIP_TCP_CalcChecksum(sgIP_memblock * mb, unsigned long srcip, unsigned long
 	checksum+=(srcip>>16);
 	checksum+=htons(totallength);
 	checksum+=(6)<<8;
-   checksum= (checksum&0xFFFF) +(checksum>>16);
-   checksum= (checksum&0xFFFF) +(checksum>>16);
+    checksum= (checksum&0xFFFF) +(checksum>>16);
+    checksum= (checksum&0xFFFF) +(checksum>>16);
 
 	return checksum;
 }
@@ -255,7 +257,6 @@ int sgIP_TCP_ReceivePacket(sgIP_memblock * mb, unsigned long srcip, unsigned lon
                rec=synlist[i].linked; // we have the data we need.
                // remove entry from synlist
                numsynlist--;
-               i*=3;
                for(;i<numsynlist;i++) {
                   synlist[i]=synlist[i+1]; // assume struct copy
                }              
@@ -618,11 +619,11 @@ void sgIP_TCP_FixChecksum(unsigned long srcip, unsigned long destip, sgIP_memblo
 	checksum+=(srcip>>16);
 	checksum+=htons(mb->totallength);
 	checksum+=(6)<<8;
-   checksum=(checksum&0xFFFF) + (checksum>>16);
-   checksum=(checksum&0xFFFF) + (checksum>>16);
+    checksum=(checksum&0xFFFF) + (checksum>>16);
+    checksum=(checksum&0xFFFF) + (checksum>>16);
 
-	checksum = ~checksum;
-	if(checksum==0) checksum=0xFFFF;
+	checksum = (~checksum) & 0xFFFF;
+	if(checksum==0) checksum = 0xFFFF;
 	tcp->checksum=checksum;
 }
 
@@ -643,7 +644,7 @@ int sgIP_TCP_SendPacket(sgIP_Record_TCP * rec, int flags, int datalength) { // d
    rec->sequence_next=rec->sequence+datalength;
    k=rec->buf_tx_in;
    while(datalength>0) {
-      i=SGIP_TCP_TRANSMITBUFFERLENGTH-rec->buf_tx_in;
+      i=SGIP_TCP_TRANSMITBUFFERLENGTH-k;
       if(i>datalength)i=datalength;
       sgIP_memblock_CopyFromLinear(mb,rec->buf_tx+k,j,i);
       k+=i;
@@ -872,7 +873,7 @@ int sgIP_TCP_Send(sgIP_Record_TCP * rec, const char * datatosend, int datalength
          if(j>i) j=i;
          i=sgIP_IP_MaxContentsSize(rec->destip)-20; // max tcp data size
          if(j>i) j=i;
-         sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,i);
+         sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,j);
          rec->retrycount=0;
       }
    }

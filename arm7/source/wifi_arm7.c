@@ -214,7 +214,7 @@ void Wifi_RFInit() {
 	}
 	numchannels=ReadFlashByte(0x42);
 	channel_extrabits=ReadFlashByte(0x41);
-	channel_extrabytes=(channel_extrabits+7)/8;
+	channel_extrabytes=((channel_extrabits & 0x1F)+7)/8;
 	WIFI_REG(0x184)=((channel_extrabits>>7)<<8) | (channel_extrabits&0x7F);
 	j=0xCE;
 	if(ReadFlashByte(0x40)==3) {
@@ -418,7 +418,7 @@ void Wifi_MACWrite(u16 * src, u32 MAC_Base, u32 MAC_Offset, u32 length) {
 	if(MAC_Base>=endrange) MAC_Base -= subval;
 	while(length>0) {
 		thislength=length;
-		if(length>(endrange-MAC_Base)) length=endrange-MAC_Base;
+		if(thislength>(endrange-MAC_Base)) thislength=endrange-MAC_Base;
 		length-=thislength;
 		while(thislength>0) {
 			WIFI_REG(0x4000+MAC_Base) = *(src++);
@@ -651,8 +651,8 @@ void Wifi_Intr_DoNothing() {
 
 void Wifi_Interrupt() {
 	int wIF;
-	if(!WifiData) return;
-	if(!(WifiData->flags7&WFLAG_ARM7_RUNNING)) return;
+	if(!WifiData) { W_IF = W_IF; return; }
+	if(!(WifiData->flags7&WFLAG_ARM7_RUNNING)) { W_IF = W_IF; return; }
 	do {
 		REG_IF=0x01000000; // now that we've cleared the wireless IF, kill the bit in regular IF.
 		wIF= W_IE & W_IF;
@@ -828,8 +828,8 @@ void Wifi_Update() {
 		break;
 	case WIFIMODE_ASSOCIATED:
 		ProxySetLedState(LED_SHORTBLINK);
-		keepalive_time++;
-		if(keepalive_time>WIFI_KEEPALIVE_COUNT) {
+		keepalive_time++; // Todo: track time more accurately.
+		if(keepalive_time>WIFI_KEEPALIVE_COUNT) { 
 			keepalive_time=0;
 			Wifi_SendNullFrame();
 		}
@@ -1233,7 +1233,6 @@ int Wifi_SendSharedKeyAuthPacket() {
 }
 
 int Wifi_SendSharedKeyAuthPacket2(int challenge_length, u8 * challenge_Text) {
-	// max size is 12+24+4+6 = 46
 	u8 data[320];
 	int i,j;
 	i=Wifi_GenMgtHeader(data,0x40B0);
@@ -1257,7 +1256,6 @@ int Wifi_SendSharedKeyAuthPacket2(int challenge_length, u8 * challenge_Text) {
 
 
 int Wifi_SendAssocPacket() { // uses arm7 data in our struct
-	// max size is 12+24+4+34+4 = 66
 	u8 data[96];
 	int i,j,numrates;
 
@@ -1300,7 +1298,7 @@ int Wifi_SendAssocPacket() { // uses arm7 data in our struct
 	return Wifi_TxQueue((u16 *)data, i);
 }
 
-int Wifi_SendNullFrame() {
+int Wifi_SendNullFrame() {  // Fix: Either sent ToDS properly or drop ToDS flag. Also fix length (16+4) 
 	// max size is 12+16 = 28
 	u16 data[16];
 	// tx header
@@ -1376,6 +1374,8 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 				ptr_ssid=0;
 				channel=WifiData->curChannel;
 				wpamode=0;
+                rateset[0] = 0;
+                
 				do {
 					if(curloc>=datalen) break;
 					segtype=data[curloc++];
@@ -1542,6 +1542,12 @@ int Wifi_ProcessReceivedFrame(int macbase, int framelen) {
 								}
 								WifiData->aplist[i].ssid[j]=0;
 							}
+                            else
+                            {
+                                WifiData->aplist[i].ssid[0] = 0;
+                                WifiData->aplist[i].ssid_len = 0;
+                            }
+
 							if(WifiData->curChannel==channel) { // only use RSSI when we're on the right channel
 								WifiData->aplist[i].rssi_past[0]=WifiData->aplist[i].rssi_past[1]=
 									WifiData->aplist[i].rssi_past[2]=WifiData->aplist[i].rssi_past[3]=

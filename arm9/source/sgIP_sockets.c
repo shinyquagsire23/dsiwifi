@@ -393,6 +393,8 @@ int ioctl(int socket, long cmd, void * arg) {
 				retval=SGIP_ERROR(EINVAL);
 			}
 		}
+    default:
+        retval = SGIP_ERROR(EINVAL);
 	}
 	SGIP_INTR_UNPROTECT();
 	return retval;
@@ -527,7 +529,7 @@ extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
 						rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
 						j=rec->buf_tx_in-1;
 						if(j<0) j=SGIP_TCP_TRANSMITBUFFERLENGTH-1;
-						if(rec->buf_tx_in!=j) { timeout_ms=0; break; }
+						if(rec->buf_tx_out!=j) { timeout_ms=0; break; }
 					}
 				}
 			}
@@ -572,7 +574,7 @@ extern int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
 					rec = (sgIP_Record_TCP *)socketlist[i].conn_ptr;
 					j=rec->buf_tx_in-1;
 					if(j<0) j=SGIP_TCP_TRANSMITBUFFERLENGTH-1;
-					if(rec->buf_tx_in==j) { FD_CLR(i+1,writefds); } else retval++;
+					if(rec->buf_tx_out==j) { FD_CLR(i+1,writefds); } else retval++;
 				}
 			}
 		}

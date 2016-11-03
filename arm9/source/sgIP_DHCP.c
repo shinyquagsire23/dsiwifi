@@ -356,16 +356,20 @@ int sethostname(const char *name, size_t len)
     if ( len > size - 1) 
         return SGIP_ERROR(EINVAL);
         
-   rec = sgIP_DNS_FindDNSRecord(dhcp_hostname);        
-  
-   strncpy(dhcp_hostname, name, len);
-   dhcp_hostname[len]=0;
-   strncpy(rec->aliases[0], name, len);
-   rec->aliases[0][len]=0;
-   strncpy(rec->name, name, len);
-   rec->name[len]=0;
+    rec = sgIP_DNS_FindDNSRecord(dhcp_hostname);        
 
-   return 0;
+    strncpy(dhcp_hostname, name, len);
+    dhcp_hostname[len]=0;
+    
+    if(rec != null)
+    {
+        strncpy(rec->aliases[0], name, len);
+        rec->aliases[0][len]=0;
+        strncpy(rec->name, name, len);
+        rec->name[len]=0;
+    }
+
+    return 0;
 }
 
 
