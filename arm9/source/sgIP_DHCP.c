@@ -361,7 +361,7 @@ int sethostname(const char *name, size_t len)
     strncpy(dhcp_hostname, name, len);
     dhcp_hostname[len]=0;
     
-    if(rec != null)
+    if(rec != NULL)
     {
         strncpy(rec->aliases[0], name, len);
         rec->aliases[0][len]=0;
