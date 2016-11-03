@@ -106,7 +106,7 @@ void sgIP_TCP_Timer() { // scan through tcp records and resend anything necessar
                j=rec->buf_tx_out-rec->buf_tx_in;
                if(j<0) j+=SGIP_TCP_TRANSMITBUFFERLENGTH;
                i=(int)(rec->txwindow-rec->sequence);
-               if(j<i) j=i;
+               if(j>i) j=i;
                i=sgIP_IP_MaxContentsSize(rec->destip)-20; // max tcp data size
                if(j>i) j=i;
                sgIP_TCP_SendPacket(rec,SGIP_TCP_FLAG_ACK,j);
