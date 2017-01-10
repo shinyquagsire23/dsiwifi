@@ -27,7 +27,8 @@ DATA		:=	data
 ARCH	:=	-mthumb -mthumb-interwork
 
 CFLAGS	:=	-g -Wall -Os\
- 			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
+			-ffunction-sections -fdata-sections \
+			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math \
 			$(ARCH)
 
