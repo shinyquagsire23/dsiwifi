@@ -883,6 +883,12 @@ void erasemem(void * mem, int length) {
 void Wifi_Init(u32 wifidata) {
 	WifiData = (Wifi_MainStruct *)wifidata;
 
+#define REG_GPIOWTF (*(vu16*)0x4004C04)
+	if (isDSiMode() & !(REG_GPIOWTF & BIT(8))) {
+		REG_GPIOWTF = (REG_GPIOWTF&1) | BIT(8);
+		swiDelay(0xA3A47); //5ms
+	}
+
 	POWERCNT7 |= 2; // enable power for the wifi
 	*((volatile u16 *)0x04000206) = 0x30; // ???
 
