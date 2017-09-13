@@ -391,7 +391,8 @@ int Wifi_GetAPData(int apnum, Wifi_AccessPoint * apdata) {
 
 	
 	if(WifiData->aplist[apnum].flags&WFLAG_APDATA_ACTIVE) {
-	    while(Spinlock_Acquire(WifiData->aplist[apnum])!=SPINLOCK_OK);
+	    while(Spinlock_Acquire(WifiData->aplist[apnum])!=SPINLOCK_OK)
+	    	;
 	    {
 		// additionally calculate average RSSI here
 		WifiData->aplist[apnum].rssi=0;
