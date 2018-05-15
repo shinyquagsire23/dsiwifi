@@ -66,5 +66,6 @@ dist: dist-bin dist-src
 #-------------------------------------------------------------------------------
 install: dist-bin
 #-------------------------------------------------------------------------------
-	bzip2 -cd dswifi-$(VERSION).tar.bz2 | tar -x -C $(DEVKITPRO)/libnds
+	mkdir -p $(DESTDIR)$(DEVKITPRO)/libnds
+	bzip2 -cd dswifi-$(VERSION).tar.bz2 | tar -x -C $(DESTDIR)$(DEVKITPRO)/libnds
 
