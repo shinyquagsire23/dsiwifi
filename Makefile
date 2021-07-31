@@ -30,14 +30,14 @@ include/dswifi_version.h : Makefile
 #-------------------------------------------------------------------------------
 release: lib
 #-------------------------------------------------------------------------------
-	$(MAKE) -C arm9 BUILD=release
-	$(MAKE) -C arm7 BUILD=release
+	$(MAKE) -C arm_host BUILD=release
+	$(MAKE) -C arm_iop BUILD=release
 
 #-------------------------------------------------------------------------------
 debug: lib
 #-------------------------------------------------------------------------------
-	$(MAKE) -C arm9 BUILD=debug
-	$(MAKE) -C arm7 BUILD=debug
+	$(MAKE) -C arm_host BUILD=debug
+	$(MAKE) -C arm_iop BUILD=debug
 
 #-------------------------------------------------------------------------------
 lib:
@@ -47,14 +47,14 @@ lib:
 #-------------------------------------------------------------------------------
 clean:
 #-------------------------------------------------------------------------------
-	@$(MAKE) -C arm9 clean
-	@$(MAKE) -C arm7 clean
+	@$(MAKE) -C arm_host clean
+	@$(MAKE) -C arm_iop clean
 	@$(RM) -r dswifi-src-*.tar.bz2 dswifi-*.tar.bz2 include/dswifi_version.h lib
 
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/Makefile arm9/source arm9/Makefile common include Makefile dswifi_license.txt
+	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm_iop/source arm_iop/Makefile arm_host/source arm_host/Makefile common include Makefile dswifi_license.txt
 
 #-------------------------------------------------------------------------------
 dist-bin: all
