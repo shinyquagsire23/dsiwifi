@@ -8,7 +8,7 @@
 #include <sys/time.h>
 
 // printf
-#include "draw.h"
+#include "wifi_debug.h"
 
 //#define BYTE_ORDER  LITTLE_ENDIAN
 
@@ -39,15 +39,13 @@ typedef uintptr_t   mem_ptr_t;
 
 #define LWIP_RAND() ((u32_t)rand())
 
-#define printf_wrap(...) printf_cont(WHITE, __VA_ARGS__)
-
 /* Plaform specific diagnostic output */
 #define LWIP_PLATFORM_DIAG(x)   do {                \
-        printf_wrap x;                   \
+        wifi_printf x;                   \
     } while (0)
 
 #define LWIP_PLATFORM_ASSERT(x) do {                \
-        printf(WHITE, "Assert \"%s\" failed at line %d in %s\n",   \
+        wifi_printf("Assert \"%s\" failed at line %d in %s\n",   \
                 x, __LINE__, __FILE__);             \
     } while (0)
 
