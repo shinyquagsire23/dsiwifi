@@ -23,8 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ******************************************************************************/
 
-#ifndef DSWIFI9_H
-#define DSWIFI9_H
+#ifndef DSIWIFI9_H
+#define DSIWIFI9_H
 
 #include "dswifi_version.h"
 

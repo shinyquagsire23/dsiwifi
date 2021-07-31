@@ -23,8 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ******************************************************************************/
 
-#ifndef DSWIFI7_H
-#define DSWIFI7_H
+#ifndef DSIWIFI7_H
+#define DSIWIFI7_H
 
 #include "dswifi_version.h"
 
@@ -87,4 +87,4 @@ extern void installWifiFIFO();
 #endif
 
 
-#endif // DSWIFI7_H
+#endif // DSIWIFI7_H
