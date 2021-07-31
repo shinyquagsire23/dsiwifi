@@ -65,6 +65,14 @@ PACK_STRUCT_END
 #  include "arch/epstruct.h"
 #endif
 
+PACK_STRUCT_BEGIN
+
+struct eth_snap {
+PACK_STRUCT_FLD_8(u8_t hdr[6]);
+} PACK_STRUCT_STRUCT;
+
+PACK_STRUCT_END
+
 /** Initialize a struct eth_addr with its 6 bytes (takes care of correct braces) */
 #define ETH_ADDR(b0, b1, b2, b3, b4, b5) {{b0, b1, b2, b3, b4, b5}}
 
@@ -79,6 +87,8 @@ struct eth_hdr {
 #endif
   PACK_STRUCT_FLD_S(struct eth_addr dest);
   PACK_STRUCT_FLD_S(struct eth_addr src);
+  PACK_STRUCT_FIELD(u16_t len);
+  PACK_STRUCT_FLD_S(struct eth_snap snap);
   PACK_STRUCT_FIELD(u16_t type);
 } PACK_STRUCT_STRUCT;
 PACK_STRUCT_END
@@ -86,7 +96,7 @@ PACK_STRUCT_END
 #  include "arch/epstruct.h"
 #endif
 
-#define SIZEOF_ETH_HDR (14 + ETH_PAD_SIZE)
+#define SIZEOF_ETH_HDR (22 + ETH_PAD_SIZE)
 
 #ifdef PACK_STRUCT_USE_INCLUDES
 #  include "arch/bpstruct.h"

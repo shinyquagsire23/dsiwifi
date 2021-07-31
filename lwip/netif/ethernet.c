@@ -310,6 +310,17 @@ ethernet_output(struct netif * netif, struct pbuf * p,
   ethhdr->type = eth_type_be;
   SMEMCPY(&ethhdr->dest, dst, ETH_HWADDR_LEN);
   SMEMCPY(&ethhdr->src,  src, ETH_HWADDR_LEN);
+  ethhdr->snap.hdr[0] = 0xAA;
+  ethhdr->snap.hdr[1] = 0xAA;
+  ethhdr->snap.hdr[2] = 0x03;
+  ethhdr->snap.hdr[3] = 0x00;
+  ethhdr->snap.hdr[4] = 0x00;
+  ethhdr->snap.hdr[5] = 0x00;
+  ethhdr->padding[0] = 0x00;
+  ethhdr->padding[1] = 0x1C;
+  
+  u16_t eth_len = lwip_htons(p->len - 14);
+  ethhdr->len = eth_len;
 
   LWIP_ASSERT("netif->hwaddr_len must be 6 for ethernet_output!",
               (netif->hwaddr_len == ETH_HWADDR_LEN));
