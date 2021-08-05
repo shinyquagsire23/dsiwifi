@@ -1125,6 +1125,7 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
     MCU_SetWirelessLedState(true);
 #endif
     *(vu16*)0x4004C04 &= ~0x100; // Select Atheros
+    //*(vu16*)0x4004C04 |= 0x100; // Select legacy wireless
     
     u8 command[2];
     command[0] = WRITE_FOUT_1;
@@ -1134,8 +1135,7 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
 	command[1] = 0x00;
 	rtcTransaction(command, 2, 0, 0);
 	i2cWriteRegister(I2C_PM, 0x30, 0x13);
-	i2cWriteRegister(I2C_PM, 0x31, 0x1);
-	*(vu16*)0x4004020 = 0x0;
+	*(vu16*)0x4004020 = 0x1; // SCFG_WL on?
     
     ctx->tmio.bus_width = 4;
     
