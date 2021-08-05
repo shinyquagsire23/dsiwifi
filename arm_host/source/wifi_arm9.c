@@ -34,9 +34,11 @@ SOFTWARE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "wifi_host.h"
+
 #ifdef WIFI_USE_TCP_SGIP
 
-#include "sgIP.h"
+#include "nds/sgIP.h"
 
 
 sgIP_Hub_HWInterface * wifi_hw;
@@ -1010,7 +1012,8 @@ void Wifi_Sync() {
 //---------------------------------------------------------------------------------
 void Timer_50ms(void) {
 //---------------------------------------------------------------------------------
-	Wifi_Timer(50);
+	//Wifi_Timer(50);
+	wifi_host_tick();
 }
 
 // notification function to send fifo message to arm7
@@ -1036,6 +1039,7 @@ void wifiValue32Handler(u32 value, void* data) {
 //---------------------------------------------------------------------------------
 bool Wifi_InitDefault(bool useFirmwareSettings) {
 //---------------------------------------------------------------------------------
+#if 0
 	fifoSetValue32Handler(FIFO_DSWIFI,  wifiValue32Handler, 0);
 
 	u32 wifi_pass = Wifi_Init(WIFIINIT_OPTION_USELED);
@@ -1072,5 +1076,8 @@ bool Wifi_InitDefault(bool useFirmwareSettings) {
 	}
 
 	return true;
+#endif
+    wifi_host_init();
+    return true;
 }
 

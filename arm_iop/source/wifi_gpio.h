@@ -4,9 +4,7 @@
  * See dsiwifi_license.txt for terms of use.
  */
 
-#ifndef _DSIWIFI_WIFI_DEBUG_H
-#define _DSIWIFI_WIFI_DEBUG_H
+#ifndef _DSIWIFI_WIFI_GPIO_H
+#define _DSIWIFI_WIFI_GPIO_H
 
-#define wifi_printlnf(...) ;
-
-#endif // _DSIWIFI_WIFI_DEBUG_H
+#endif // _DSIWIFI_WIFI_GPIO_H

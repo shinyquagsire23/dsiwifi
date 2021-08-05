@@ -32,18 +32,18 @@ CFLAGS	:=	-g -Wall -Os\
 			-ffast-math \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM7
+CFLAGS	+=	$(INCLUDE) -DARM7 -DARM_IOP
 CXXFLAGS	:=	$(CFLAGS)
 
 
-ASFLAGS	:=	-g $(ARCH) $(INCLUDE) -DARM7
+ASFLAGS	:=	-g $(ARCH) $(INCLUDE) -DARM7 -DARM_IOP
 LDFLAGS	=	-specs=ds_arm7.specs -g $(ARCH) -Wl,-Map,$(notdir $*).map
 
 
 ifneq ($(BUILD),debug)
-export ARM7BIN	:=	$(TOPDIR)/lib/libdswifi7.a
+export ARM7BIN	:=	$(TOPDIR)/lib/libdsiwifi7.a
 else
-export ARM7BIN	:=	$(TOPDIR)/lib/libdswifi7d.a
+export ARM7BIN	:=	$(TOPDIR)/lib/libdsiwifi7d.a
 CFLAGS	+=	-DSGIP_DEBUG
 endif
 
@@ -113,7 +113,7 @@ $(BUILD):
 clean:
 	@echo clean ...
 	@rm -fr debug release
-	@rm -f $(TOPDIR)/lib/libdswifi7*
+	@rm -f $(TOPDIR)/lib/libdsiwifi7*
 
 all: $(ARM7BIN)
 

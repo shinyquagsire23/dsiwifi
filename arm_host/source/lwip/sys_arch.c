@@ -1,5 +1,7 @@
 #include "sys.h"
 
+#include <nds.h>
+
 static u32 val = 0;
 
 void sys_now_inc(u32 amt)

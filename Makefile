@@ -10,9 +10,9 @@ export DSIWIFI_REVISION	:= 0
 
 VERSION	:=	$(DSIWIFI_MAJOR).$(DSIWIFI_MINOR).$(DSIWIFI_REVISION)
 
-.PHONY: release debug clean all
+.PHONY: release debug clean all test_app
 
-all: include/dswifi_version.h release debug
+all: include/dswifi_version.h release debug test_app
 
 include/dswifi_version.h : Makefile
 	@echo "#ifndef _dswifi_version_h_" > $@
@@ -26,6 +26,10 @@ include/dswifi_version.h : Makefile
 	@echo >> $@
 	@echo "#endif // _dswifi_version_h_" >> $@
 
+#-------------------------------------------------------------------------------
+test_app: debug
+#-------------------------------------------------------------------------------
+	$(MAKE) -C test_app
 
 #-------------------------------------------------------------------------------
 release: lib
@@ -49,6 +53,7 @@ clean:
 #-------------------------------------------------------------------------------
 	@$(MAKE) -C arm_host clean
 	@$(MAKE) -C arm_iop clean
+	@$(MAKE) -C test_app clean
 	@$(RM) -r dswifi-src-*.tar.bz2 dswifi-*.tar.bz2 include/dswifi_version.h lib
 
 #-------------------------------------------------------------------------------

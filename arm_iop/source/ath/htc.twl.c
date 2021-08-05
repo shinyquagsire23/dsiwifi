@@ -11,7 +11,7 @@
 
 #include "ath/mbox.h"
 #include "ath/wmi.h"
-#include "sdio.h"
+#include "wifi_card.h"
 
 static u8 htc_buffer[0x200];
 
@@ -33,24 +33,24 @@ void htc_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
 
             // Handshake
             htc_send_pkt(HTC_MSG_CONN_SVC, MBOXPKT_NOACK, wmi_handshake_1, sizeof(wmi_handshake_1));    
-            sdio_mbox0_readpkt();
+            wifi_card_mbox0_readpkt();
             htc_send_pkt(HTC_MSG_CONN_SVC, MBOXPKT_NOACK, wmi_handshake_2, sizeof(wmi_handshake_2));
-            sdio_mbox0_readpkt();
+            wifi_card_mbox0_readpkt();
             htc_send_pkt(HTC_MSG_CONN_SVC, MBOXPKT_NOACK, wmi_handshake_3, sizeof(wmi_handshake_3));
-            sdio_mbox0_readpkt();
+            wifi_card_mbox0_readpkt();
             htc_send_pkt(HTC_MSG_CONN_SVC, MBOXPKT_NOACK, wmi_handshake_4, sizeof(wmi_handshake_4));
-            sdio_mbox0_readpkt();
+            wifi_card_mbox0_readpkt();
             htc_send_pkt(HTC_MSG_CONN_SVC, MBOXPKT_NOACK, wmi_handshake_5, sizeof(wmi_handshake_5));
-            sdio_mbox0_readpkt();
+            wifi_card_mbox0_readpkt();
             htc_send_pkt(HTC_MSG_SETUP_COMPLETE, MBOXPKT_NOACK, NULL, 0);
             
-            sdio_write_func1_u32(0x418, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
-            sdio_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
+            wifi_card_write_func1_u32(0x418, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
+            wifi_card_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
             
             break;
         }
         case HTC_MSG_CONN_SVC_RESP:
-            wifi_printlnf("HTC_MSG_CONN_SVC_RESP");
+            //wifi_printlnf("HTC_MSG_CONN_SVC_RESP");
             break;
         case HTC_MSG_UNK_0201:
             //wifi_printlnf("HTC_ACK");
@@ -78,5 +78,5 @@ void htc_send_pkt(u16 htc_type, u8 ack_type, const void* data, u16 len)
     
     len += sizeof(u16);
     
-    sdio_mbox0_send_packet(MBOXPKT_HTC, ack_type, htc_buffer, len, 0);
+    wifi_card_mbox0_send_packet(MBOXPKT_HTC, ack_type, htc_buffer, len, 0);
 }

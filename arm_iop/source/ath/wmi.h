@@ -96,4 +96,7 @@ bool wmi_handshake_done();
 err_t ath_init_fn(struct netif *netif);
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
 
+u8* wmi_get_mac();
+u8* wmi_get_ap_mac();
+
 #endif // _WMI_H

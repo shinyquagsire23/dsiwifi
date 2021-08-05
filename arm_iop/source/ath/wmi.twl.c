@@ -13,25 +13,14 @@
 
 #include "ath/mbox.h"
 #include "ieee/wpa.h"
-#include "sdio.h"
+#include "wifi_card.h"
 
-#include "lwip/err.h"
-#include "lwip/inet.h"
-#include "lwip/lwip_init.h"
-#include "lwip/tcp.h"
-#include "lwip/ip_addr.h"
-#include "lwip/netif.h"
-#include "lwip/dhcp.h"
-#include "lwip/timeouts.h"
-#include "lwip/etharp.h"
-#include "lwip/netif/ethernet.h"
-#include "lwip/sys.h"
-#include "lwip/netbiosns.h"
+#include "dsiwifi_cmds.h"
+
+#include <nds.h>
+#include <nds/interrupts.h>
 
 static u8 device_mac[6];
-static u8 wmi_buffer[0x1000];
-
-static u8 ip_buffer[0x1000];
 
 static u8 device_num_channels = 0;
 static u8 device_cur_channel_idx = 0;
@@ -51,7 +40,7 @@ static u8 ap_authkey_cipher[4];
 static u16 ap_snr = 0;
 static u16 num_rounds_scanned = 0;
 
-static u16 wmi_idk = 0;
+u16 wmi_idk = 0;
 static bool wmi_bIsReady = false;
 
 static bool scan_done = false;
@@ -69,13 +58,6 @@ static u8 device_ap_mic[16];
 static gtk_keyinfo device_gtk_keyinfo;
 static ptk_keyinfo device_ptk;
 
-// LWIP state
-static struct netif ath_netif;
-static ip_addr_t ath_myip_addr;
-static bool wmi_bLwipStarted = false;
-static bool wmi_bNeedsDHCPRenew = false;
-
-void ath_lwip_tick();
 void wmi_scantick();
 void wmi_delete_bad_ap_cmd();
 
@@ -202,18 +184,18 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
     
     for (int i = 0; i < 3; i++)
     {
-        if (!sdio_nvram_configs[i].ssid[0]) continue;
+        if (!wifi_card_nvram_configs[i].ssid[0]) continue;
         if (wmi_params->snr < 0x20) continue;
 
         //TODO if an AP fails too many times, ignore it.
-        if (!strncmp(tmp, sdio_nvram_configs[i].ssid, strlen(sdio_nvram_configs[i].ssid)) && wmi_params->snr > ap_snr)
+        if (!strncmp(tmp, wifi_card_nvram_configs[i].ssid, strlen(wifi_card_nvram_configs[i].ssid)) && wmi_params->snr > ap_snr)
         {
             ap_nvram_idx = i;
             ap_channel = wmi_params->channel;
             ap_caps = wmi_frame_hdr->capability;
-            ap_name = sdio_nvram_configs[ap_nvram_idx].ssid;
-            ap_pass = sdio_nvram_configs[ap_nvram_idx].pass;
-            memcpy(ap_pmk, sdio_nvram_configs[ap_nvram_idx].pmk, 0x20);
+            ap_name = wifi_card_nvram_configs[ap_nvram_idx].ssid;
+            ap_pass = wifi_card_nvram_configs[ap_nvram_idx].pass;
+            memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx].pmk, 0x20);
             ap_snr = wmi_params->snr;
 
             memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
@@ -282,8 +264,8 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             const u8 wmi_handshake_7[20] = {0xff,0xff, 0xff,0xff, 0xff,0xff, 0x14,0, 0x32,0,3,0, 0,0,0,0, 0,0,0,0};
             
             // Allows more commands to be sent
-            u32 idk_addr = sdio_read_intern_word(sdio_host_interest_addr());
-            sdio_write_intern_word(idk_addr, 0x3); // WMI_PROTOCOL_VERSION?
+            u32 idk_addr = wifi_card_read_intern_word(wifi_card_host_interest_addr());
+            wifi_card_write_intern_word(idk_addr, 0x3); // WMI_PROTOCOL_VERSION?
 
             wmi_send_pkt(WMI_SET_SCAN_PARAMS_CMD, MBOXPKT_REQACK, wmi_handshake_7, sizeof(wmi_handshake_7));
             
@@ -302,7 +284,7 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
         {
             wifi_printlnf("WMI_CMD_ERROR_EVENT, %04x %02x", *(u16*)pkt_data, pkt_data[2]);
             
-            sdio_write_func1_u32(0x400, sdio_read_func1_u32(0x400)); // ack ints?
+            wifi_card_write_func1_u32(0x400, wifi_card_read_func1_u32(0x400)); // ack ints?
             
             u32 arg0 = 0x7F;
             wmi_send_pkt(WMI_TARGET_ERROR_REPORT_BITMASK_CMD, MBOXPKT_REQACK, &arg0, sizeof(u32));
@@ -326,17 +308,31 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             wifi_printlnf("WMI_CONNECT_EVENT len %x", len);
             
             ap_connected = true;
-            wmi_bNeedsDHCPRenew = true;
+            
+            wifi_card_send_connect();
             
             break;
         }
         case WMI_DISCONNECT_EVENT:
         {
-            wifi_printlnf("WMI_DISCONNECT %04x %02x:%02x:%02x.. %02x", *(u16*)pkt_data, pkt_data[2], pkt_data[3], pkt_data[4], pkt_data[8]);
+            u8 disconnectReason = pkt_data[8];
+            wifi_printlnf("WMI_DISCONNECT %04x %02x:%02x:%02x.. %02x", *(u16*)pkt_data, pkt_data[2], pkt_data[3], pkt_data[4], disconnectReason);
             
             if (!ap_connected && sent_connect)
             {
                 ap_found = false;
+                ap_connected = false;
+                sent_connect = false;
+                num_rounds_scanned = 0;
+                
+                wmi_disconnect_cmd();
+                wmi_delete_bad_ap_cmd();
+                wmi_scan();
+            }
+            
+            if (ap_connected && (disconnectReason == 4 || disconnectReason == 1)) {
+                ap_found = false;
+                ap_connected = false;
                 sent_connect = false;
                 num_rounds_scanned = 0;
                 
@@ -365,24 +361,6 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             wifi_printlnf("WMI pkt ID %04x, len %02x %02x", pkt_cmd, len, ack_len);
             break;
     }
-}
-
-void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len)
-{
-    memset(wmi_buffer, 0, sizeof(wmi_buffer));
-    
-    *(u16*)&wmi_buffer[0] = wmi_type;
-    
-    // Truncate to wmi_buffer size
-    if (len > (sizeof(wmi_buffer) - sizeof(u16)))
-        len = (sizeof(wmi_buffer) - sizeof(u16));
-
-    if (data)
-        memcpy(&wmi_buffer[2], data, len);
-    
-    len += sizeof(u16);
-    
-    sdio_mbox0_send_packet(MBOXPKT_WMI, ack_type, wmi_buffer, len, wmi_idk);
 }
 
 // Pkt sending
@@ -585,8 +563,7 @@ void wmi_connect();
 
 void wmi_scan()
 {
-    sdio_write_func1_u32(F1_INT_STATUS_ENABLE, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
-    sdio_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
+    int lock = enterCriticalSection();
 
     // Begin connecting...
     u32 arg0 = 0x7F;
@@ -610,18 +587,23 @@ void wmi_scan()
     wmi_send_pkt(WMI_SET_PROBED_SSID_CMD, MBOXPKT_REQACK, &wmi_probed_ssid, sizeof(wmi_probed_ssid));
     
     wmi_bScanning = true;
+    
+    wifi_printf("scanning\n");
+    
+    leaveCriticalSection(lock);
 }
 
 void wmi_tick()
 {
     if (wmi_bScanning)
         wmi_scantick();
-    if (wmi_bLwipStarted)
-        ath_lwip_tick();
 }
+
+static int test_tick = 0;
 
 void wmi_scantick()
 {
+    //wifi_printf("asdf2 %x %x\r", test_tick++, device_num_channels);
     if (!device_num_channels) return;
 
     if (ap_found && !sent_connect && num_rounds_scanned > 2)
@@ -704,7 +686,8 @@ bool wmi_is_ready()
 void wmi_tick_display()
 {
     //const u8 broadcast_all[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    
+
+#if 0 
     static int counter = 0;
     
     if (counter++ > 0x40)
@@ -721,12 +704,11 @@ void wmi_tick_display()
         //data_send_ip(broadcast_all, device_mac, NULL, 0);
         counter = 0;
     }
+#endif
 }
 
 void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)
 {
-    ip_addr_t gw_addr, netmask;
-    
     u8 tmp8 = 1;
     wmi_send_pkt(WMI_SYNCHRONIZE_CMD, MBOXPKT_REQACK, &tmp8, sizeof(tmp8)); // 0x0?
     
@@ -742,104 +724,11 @@ void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)
     tmp8 = 1;
     wmi_send_pkt(WMI_SYNCHRONIZE_CMD, MBOXPKT_REQACK, &tmp8, sizeof(tmp8)); // 0x0?
     
+    wifi_card_send_ready();
+    
     // Helps somewhat with some APs? Limited by region info.
     //wmi_set_tx_power();
-    
-    // If this is just the AP renewing keys, don't redo lwip init.
-    if (wmi_bLwipStarted) {
-        if (wmi_bNeedsDHCPRenew)
-        {
-            //rpc_deinit();
-            //rpc_init();
 
-            dhcp_start(&ath_netif);
-            wmi_bNeedsDHCPRenew = false;
-        }
-        return;
-    }
-    
-    // Initialize LwIP
-
-    ath_myip_addr.addr = IPADDR_NONE;
-    gw_addr.addr = IPADDR_NONE;
-    netmask.addr = IPADDR_NONE;
-    
-    lwip_init();
-    
-    if (netif_add(&ath_netif, &ath_myip_addr, &netmask, &gw_addr, NULL /* priv state */,
-                ath_init_fn, ethernet_input) == NULL) {
-        wifi_printlnf("mch_net_init: netif_add (mchdrv_init) failed");
-        return;
-    }
-
-    netif_set_default(&ath_netif);
-    netif_set_up(&ath_netif);
-    netif_set_link_up(&ath_netif);
-    
-    netbiosns_set_name(ath_netif.hostname);
-    netbiosns_init();
-    
-    dhcp_start(&ath_netif);
-    
-    //rpc_init();
-    
-    wmi_bLwipStarted = true;
-    wmi_bNeedsDHCPRenew = false;
-}
-
-//
-// LwIP
-//
-err_t ath_init_fn(struct netif *netif)
-{
-    ath_netif.output = etharp_output;
-    ath_netif.linkoutput = ath_link_output;
-    ath_netif.mtu = 1500;
-
-    if (ap_snr < 0x28)
-        ath_netif.mtu = 0x400;
-        
-    ath_netif.name[0] = 'w';
-    ath_netif.name[1] = 'l';
-    ath_netif.hwaddr_len = 6;
-    ath_netif.hostname = "WhoNeedTheyPzy8";
-    memcpy(ath_netif.hwaddr, device_mac, 6);
-    ath_netif.flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET | NETIF_FLAG_IGMP | NETIF_FLAG_MLD6 | NETIF_FLAG_LINK_UP;
-    
-    return ERR_OK;
-}
-
-err_t ath_link_output(struct netif *netif, struct pbuf *p)
-{
-    // TODO pbuf_coalesce?
-    
-    //wifi_printlnf("link output");
-    
-    data_send_link(p->payload, p->len);
-    
-    //hexdump(p->payload,  0x20);
-    
-    return ERR_OK;
-}
-
-void ath_lwip_tick()
-{
-    sys_check_timeouts();
-}
-
-void data_send_to_lwip(void* data, u32 len)
-{
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_RAM);
-    
-    //wifi_printlnf("link in %x", len);
-    
-    // TODO error check?
-    
-    memcpy(p->payload, data, p->len);
-    
-    if (ath_netif.input(p, &ath_netif) != ERR_OK) {
-        pbuf_free(p);
-    }
 }
 
 //
@@ -959,47 +848,6 @@ void data_send_wpa_handshake4(const u8* dst_bssid, const u8* src_bssid, u64 repl
     has_sent_hs4 = true;
 }
 
-// Craft an IP packet
-void data_send_ip(const u8* dst_bssid, const u8* src_bssid, void* ip_data, u32 ip_data_len)
-{
-    struct __attribute__((packed)) {
-        u8 idk[2];
-        u8 dst_bssid[6]; // AP MAC
-        u8 src_bssid[6]; // 3DS MAC
-        u8 data_len_be[2];
-        u8 snap_hdr[6];
-        u8 pkt_type[2];
-
-        u8 end[];
-    } data_hdr = {{0}, {0}, {0}, {0}, {0xAA,0xAA,0x03,0,0,0}, {0}};
-
-    putbe16(data_hdr.pkt_type, 0x0800);
-    putbe16(data_hdr.idk, 0x1C);
-
-    u16 total_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.idk;
-    u16 data_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.snap_hdr;
-    u16 header_len = total_len;
-
-    memcpy(data_hdr.dst_bssid, dst_bssid, 6);
-    memcpy(data_hdr.src_bssid, src_bssid, 6);
-
-    
-    
-    if (ip_data)
-    {
-        memcpy(ip_buffer + header_len, ip_data, ip_data_len);
-        data_len += ip_data_len;
-        total_len += ip_data_len;
-    }
-    
-    putbe16(data_hdr.data_len_be, data_len);
-    
-    // Copy header
-    memcpy(ip_buffer, &data_hdr, header_len);
-    
-    data_send_pkt_idk(ip_buffer, total_len);
-}
-
 // Send a raw Ethernet ARP+SNAP
 void data_send_link(void* ip_data, u32 ip_data_len)
 {
@@ -1074,11 +922,22 @@ void data_handle_auth(u8* pkt_data, u32 len, const u8* dev_bssid, const u8* ap_b
         wifi_printlnf("Unk Auth Pkt: %x", keyinfo);
         //hexdump(pkt_data, len);
     }
+    wifi_printlnf("Done auth");
 }
 
 bool wmi_handshake_done()
 {
     return has_sent_hs4;
+}
+
+u8* wmi_get_mac()
+{
+    return device_mac;
+}
+
+u8* wmi_get_ap_mac()
+{
+    return ap_bssid;
 }
 
 #pragma pack(pop)

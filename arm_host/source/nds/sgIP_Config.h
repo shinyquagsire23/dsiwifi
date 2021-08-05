@@ -29,6 +29,7 @@ SOFTWARE.
 
 #define __LINUX_ERRNO_EXTENSIONS__
 #include <errno.h>
+#include <sys/errno.h>
 
 //////////////////////////////////////////////////////////////////////////
 // General options - these control the core functionality of the stack.

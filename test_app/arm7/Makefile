@@ -7,8 +7,6 @@ endif
 
 include $(DEVKITARM)/ds_rules
 
-TOPDIR ?= $(CURDIR)/..
-
 #---------------------------------------------------------------------------------
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
@@ -16,47 +14,29 @@ TOPDIR ?= $(CURDIR)/..
 # DATA is a list of directories containing binary files
 # all directories are relative to this makefile
 #---------------------------------------------------------------------------------
-BUILD		?=	release
-SOURCES		:=	source ../common/source source/nds source/lwip source/lwip/ipv4 source/lwip/ipv6 source/lwip/netif source/lwip/netif/ppp
-INCLUDES	:=	include ../common/source ../include ../include/lwip source/nds
-DATA		:=	data
+BUILD    := build
+SOURCES  := source
+INCLUDES := include build ../../include
+DATA     :=
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork
+ARCH := -mthumb-interwork
 
-CFLAGS	:=	-g -Wall -Os\
-			-ffunction-sections -fdata-sections \
-			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -mno-unaligned-access\
-			-ffast-math \
-			$(ARCH)
+CFLAGS   := -g -Wall -O3\
+            $(ARCH) $(INCLUDE) -DARM7
+CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
+ASFLAGS  := -g $(ARCH)
+LDFLAGS   = -specs=ds_arm7.specs -g $(ARCH) -Wl,--nmagic -Wl,-Map,$(notdir $*).map
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -DARM_HOST
-CXXFLAGS	:=	$(CFLAGS)
-
-ASFLAGS	:=	-g $(ARCH) $(INCLUDE) -DARM9 -DARM_HOST
-LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-
-ifneq ($(BUILD),debug)
-export ARM9BIN	:=	$(TOPDIR)/lib/libdsiwifi9.a
-else
-export ARM9BIN	:=	$(TOPDIR)/lib/libdsiwifi9d.a
-CFLAGS	+=	-DSGIP_DEBUG
-endif
-
-
-#---------------------------------------------------------------------------------
-# any extra libraries we wish to link with the project
-#---------------------------------------------------------------------------------
-LIBS	:=
-#-lnds9
+LIBS := $(CURDIR)/../../../lib/libdsiwifi7d.a -lnds7
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(LIBNDS)
+LIBDIRS	:= $(LIBNDS) $(CURDIR)/../../lib/
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -65,45 +45,43 @@ LIBDIRS	:=	$(LIBNDS)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-
+export ARM7ELF := $(CURDIR)/$(TARGET).elf
 export DEPSDIR := $(CURDIR)/$(BUILD)
 
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+export VPATH := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))\
+                $(foreach dir,$(DATA),$(CURDIR)/$(dir))
 
-export CC		:=	$(PREFIX)gcc
-export CXX		:=	$(PREFIX)g++
-export AR		:=	$(PREFIX)ar
-export OBJCOPY	:=	$(PREFIX)objcopy
-
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+BINFILES := $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
 #---------------------------------------------------------------------------------
 ifeq ($(strip $(CPPFILES)),)
 #---------------------------------------------------------------------------------
-	export LD	:=	$(CC)
+  export LD := $(CC)
 #---------------------------------------------------------------------------------
 else
 #---------------------------------------------------------------------------------
-	export LD	:=	$(CXX)
+  export LD := $(CXX)
 #---------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------
 
-export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
-					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+export OFILES_BIN   :=	$(addsuffix .o,$(BINFILES))
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-					-I$(CURDIR)/$(BUILD)
+export OFILES_SOURCES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+export OFILES := $(OFILES_BIN) $(OFILES_SOURCES)
+
+export HFILES := $(addsuffix .h,$(subst .,_,$(BINFILES)))
+
+export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir))\
+                   $(foreach dir,$(LIBDIRS),-I$(dir)/include)\
+                   -I$(CURDIR)/$(BUILD)
+export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 .PHONY: $(BUILD) clean
 
@@ -115,10 +93,8 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr debug release
-	@rm -f $(TOPDIR)/lib/libdsiwifi9*
+	@rm -fr $(BUILD) $(TARGET).elf
 
-all: $(ARM9BIN)
 
 #---------------------------------------------------------------------------------
 else
@@ -128,19 +104,17 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-$(ARM9BIN)	:	$(OFILES)
-	@rm -f "$(ARM9BIN)"
-	@$(AR) rcs "$(ARM9BIN)" $(OFILES)
-	@echo built ... $(notdir $@)
+$(ARM7ELF) : $(OFILES) libs
+	@echo linking $(notdir $@)
+	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+
+libs: $(CURDIR)/../../../lib/libdsiwifi7d.a
 
 #---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data
-#---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
+%.bin.o %_bin.h : %.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
-
 
 -include $(DEPENDS)
 

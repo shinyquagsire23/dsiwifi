@@ -24,9 +24,9 @@
 #define LWIP_BROADCAST_PING         1
 #define LWIP_MULTICAST_PING         1
 #define LWIP_RAW                    1
-#define TCP_WND                     (0xFFFF)
-#define TCP_MSS                     2920
-#define TCP_SND_BUF                 (0xFFFF)
+#define TCP_WND                     (2920)
+#define TCP_MSS                     1460
+#define TCP_SND_BUF                 (2920)
 #define TCP_LISTEN_BACKLOG          1
 #define LWIP_NETIF_STATUS_CALLBACK  1
 #define LWIP_NETIF_LINK_CALLBACK    1

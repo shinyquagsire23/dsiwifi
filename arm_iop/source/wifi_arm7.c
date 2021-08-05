@@ -28,6 +28,8 @@ SOFTWARE.
 #include <nds.h>
 #include "dsregs.h"
 #include "wifi_arm7.h"
+#include "wifi_debug.h"
+#include "wifi_card.h"
 
 #include "spinlock.h" // .h file with code for spinlocking in it.
 
@@ -1759,8 +1761,10 @@ static void arm7_synctoarm9() {
 
 
 void installWifiFIFO() {
-	irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
-	Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
-	fifoSetValue32Handler(FIFO_DSWIFI, wifiValue32Handler, 0);
-	fifoSetAddressHandler(FIFO_DSWIFI, wifiAddressHandler, 0);
+	//irqSet(IRQ_WIFI, Wifi_Interrupt); // set up wifi interrupt
+	//Wifi_SetSyncHandler(arm7_synctoarm9); // allow wifi lib to notify arm9
+	//fifoSetValue32Handler(FIFO_DSWIFI, wifiValue32Handler, 0);
+	//fifoSetAddressHandler(FIFO_DSWIFI, wifiAddressHandler, 0);
+	
+	wifi_card_init();
 }
