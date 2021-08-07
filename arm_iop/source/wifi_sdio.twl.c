@@ -26,16 +26,16 @@ void wifi_sdio_controller_init(void* controller)
 
 #ifdef WIFI_SDIO_DATA32
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0020, 0x0000);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0x0200);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 128);
 #else
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0022, 0x0000);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0x0000);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0);
 #endif
 
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_CNT, 0x0001);
 
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_RESET, 0x0001, 0x0000);
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_RESET, 0x0000, 0x0001);
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_RESET, 0x0003, 0x0000);
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_RESET, 0x0000, 0x0003);
 
     // Disable all interrupts.
     wifi_sdio_write32(c, WIFI_SDIO_OFFS_IRQ_MASK, 0xFFFFFFFF);
@@ -53,10 +53,14 @@ void wifi_sdio_controller_init(void* controller)
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CARD_OPT, 0x80D0);
 #endif
 
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x8000, 0x0000);
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x0000, 0x0100);
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x0100, 0x0000);
+
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_PORT_SEL, 0b11, 0);
 
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_LEN, 512);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_STOP, 0x0000);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_LEN, 128);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_STOP, 0x0100);
 }
 
 void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)

@@ -1124,6 +1124,7 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
 
     MCU_SetWirelessLedState(true);
 #endif
+    //powerOn(1 << 1);
     *(vu16*)0x4004C04 &= ~0x100; // Select Atheros
     //*(vu16*)0x4004C04 |= 0x100; // Select legacy wireless
     
@@ -1138,12 +1139,23 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
 	*(vu16*)0x4004020 = 0x1; // SCFG_WL on?
     
     ctx->tmio.bus_width = 4;
-    
     wifi_card_switch_device(ctx);
     ioDelay(0xF000);
+    
+    //wifi_card_write_func0_u8(0x6, 0x8);
+    
+    // Read register 0x00 (Revision) as a test
+    wifi_card_read_func0_u8(0x00);
+    if(ctx->tmio.status & 4) {
+        ctx->tmio.bus_width = 1;
+        wifi_card_switch_device(ctx);
+        wifi_printlnf("Failed to read revision, assuming 1bit");
+    }
 
-#if 0
-    if(is_firstboot)
+    //wifi_card_write_func0_u8(0x02, 0);
+    
+
+    //if(is_firstboot)
     {
         wifi_printlnf("Resetting SDIO...");
         wifi_sdio_stop(ctx->tmio.controller);
@@ -1178,7 +1190,10 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
             {
                 // CMD5 - IO_SEND_OP_COND
                 wifi_card_send_command(cmd5, ocr);
-                if(ctx->tmio.status & 4) return -1;
+                if(ctx->tmio.status & 4) {
+                    wifi_printf("Skip opcond...\n");
+                    goto skip_opcond;
+                }
 
                 if(ctx->tmio.status & 1) break;
             }
@@ -1208,16 +1223,23 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
         wifi_card_send_command(cmd7, (u32)(ctx->tmio.address) << 16);
         if(ctx->tmio.status & 4) return -1;
 
+skip_opcond:
+
+        //wifi_card_write_func0_u8(0x6, 0x0);
+        wifi_card_write_func0_u8(0x2, 0x0); // adding delay after this one wipes the loaded firmware??
+        wifi_card_write_func0_u8(0x2, 0x2);
+        ioDelay(0xF000);
+
         // Read register 0x07 (Bus Interface Control) of the CCCR.
         wifi_card_send_command(cmd52, 0x07 << 9);
         if(ctx->tmio.status & 4) return -1;
         u8 bus_interface_control = ctx->tmio.resp[0] & 0xFF;
 
-        // Enable 4-bit mode.
-        bus_interface_control |= 0x02;
+        // Enable 4-bit mode and card detect
+        bus_interface_control |= 0x82;
 
         // Write to the Bus Interface Control.
-        wifi_card_send_command(cmd52, BIT(31) /* write flag */ | (0x0 << 28) | 0x07 << 9 | bus_interface_control);
+        wifi_card_write_func0_u8(0x12, bus_interface_control);
         if(ctx->tmio.status & 4) return -1;
         ctx->tmio.bus_width = 4;
 
@@ -1244,28 +1266,21 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
         wifi_card_write_func0_u8(0x11, ctx->tmio.block_size >> 8);
         if(ctx->tmio.status & 4) return -1;
     }
+
+#if 0
+    for (int i = 0; i < 0xB; i++)
+    {
+        wifi_printf("%02x ", wifi_card_read_func0_u8(i));
+    }
+    wifi_printf("\n");
+
+    for (int i = 0xB; i < 0x16; i++)
+    {
+        wifi_printf("%02x ", wifi_card_read_func0_u8(i));
+    }
+    wifi_printf("\n");
 #endif
-    // Added
-    // Write to the Power Control.
-    wifi_card_write_func0_u8(0x12, 0x02);
-    if(ctx->tmio.status & 4) return -1;
-
-    // Set block size for func1 (lsb)
-    wifi_card_write_func0_u8(0x110, ctx->tmio.block_size & 0xFF);
-    if(ctx->tmio.status & 4) return -1;
-
-    // Set block size for func1 (msb)
-    wifi_card_write_func0_u8(0x111, ctx->tmio.block_size >> 8);
-    if(ctx->tmio.status & 4) return -1;
-    
-    // Set block size for func0 (lsb)
-    wifi_card_write_func0_u8(0x10, ctx->tmio.block_size & 0xFF);
-    if(ctx->tmio.status & 4) return -1;
-
-    // Set block size for func0 (msb)
-    wifi_card_write_func0_u8(0x11, ctx->tmio.block_size >> 8);
-    if(ctx->tmio.status & 4) return -1;
-
+    ioDelay(0xF000);
 
     // Read register 0x00 (Revision)
     u8 revision = wifi_card_read_func0_u8(0x00);
