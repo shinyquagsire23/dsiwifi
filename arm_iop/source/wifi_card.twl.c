@@ -59,6 +59,9 @@ static u32 ip_data_out_buf_len = 0;
 #define CHIP_ID_AR6013 (0x0D000000)
 #define CHIP_ID_AR6014 (0x0D000001)
 
+#define AR6002_HOST_INTEREST_ADDRESS (0x00500400)
+#define AR601x_HOST_INTEREST_ADDRESS (0x00520000)
+
 #define SDIO_TICK_INTERVAL_MS (1)
 #define MBOX_TMPBUF_SIZE (0x600)
 
@@ -1255,7 +1258,9 @@ skip_opcond:
     wifi_printf("Mfg %08lx Cid %08lx (%s)\n", device_manufacturer, device_chip_id, wifi_card_get_chip_str());
 
     // TODO detect this?
-    device_host_interest_addr = 0x00520000;
+    device_host_interest_addr = AR601x_HOST_INTEREST_ADDRESS;
+    if (device_chip_id == CHIP_ID_AR6002)
+        device_host_interest_addr = AR6002_HOST_INTEREST_ADDRESS;
     
     u32 is_uploaded = wifi_card_read_intern_word( device_host_interest_addr+0x58);
 
