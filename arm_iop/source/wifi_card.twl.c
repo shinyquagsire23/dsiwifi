@@ -11,6 +11,7 @@
 #include "wifi_debug.h"
 
 #include "wifi_gpio.h"
+#include "wifi_ndma.h"
 //#include "pdn.h" // TODO
 //#include "mcu.h"  // TODO
 //#include "irq.h"
@@ -38,6 +39,7 @@
 #include <nds/interrupts.h>
 #include <nds/arm7/clock.h>
 #include <nds/arm7/serial.h>
+#include <malloc.h>
 
 #include "dsiwifi_cmds.h"
 
@@ -83,8 +85,6 @@ static u32 device_eeprom_version;
 static bool wifi_card_bInitted = false;
 
 nvram_cfg wifi_card_nvram_configs[3];
-
-void wifi_card_controller_init(void);
 
 // CMD52 - IO_RW_DIRECT (read/write single register).
 static const wifi_sdio_command cmd52 = {
@@ -514,11 +514,13 @@ void data_handle_pkt(u8* pkt_data, u32 len)
         if (len > ip_data_out_buf_len)
             len = ip_data_out_buf_len;
 
-        memcpy(ip_data_out_buf, pkt_data, len);
+        //memcpy(ip_data_out_buf, pkt_data, len);
+        
+        //wifi_printf("%x %x\n", ip_data_out_buf, pkt_data);
         
         Wifi_FifoMsg msg;
         msg.cmd = WIFI_IPCINT_PKTDATA;
-        msg.pkt_data = ip_data_out_buf;
+        msg.pkt_data = pkt_data;//ip_data_out_buf;
         msg.pkt_len = len;
         fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
         wifi_printf(""); // HACK force ARM7 to wait for ARM9 to copy packet
@@ -606,53 +608,17 @@ u16 wifi_card_mbox0_readpkt(void)
         return 0;
     }
     
-    // No data
-    if (!(wifi_card_read_func1_u8(F1_HOST_INT_STATUS) & 1)) return 0; // RX FIFO is empty, return
-    
-    //wifi_printlnf("%x %x %x", wifi_card_read_func1_u8(F1_HOST_INT_STATUS), wifi_card_read_func1_u8(F1_MBOX_FRAME), wifi_card_read_func1_u8(F1_RX_LOOKAHEAD_VALID));
-    //ioDelay(0x400000);
-    
-    // Wait for start of data... At least 4 bytes valid
-    /*timeout = 100;
-    if (!(wifi_card_read_func1_u8(F1_RX_LOOKAHEAD_VALID) & 1))
-    {
-        wifi_printlnf("b");
-    }
-    while (!(wifi_card_read_func1_u8(F1_RX_LOOKAHEAD_VALID) & 1) && --timeout)
-    {
-        
-    }
-    if (!timeout)
-    {
-        return 0;
-    }*/
-    
-    // Read until End of Message bit is gone (shouldn't be needed)
-    /*if (wifi_card_read_func1_u8(F1_MBOX_FRAME) & 0x10)
-    {
-        wifi_printlnf("c");
-    }
-    while (wifi_card_read_func1_u8(F1_MBOX_FRAME) & 0x10)
-    {
-        wifi_card_read_func1_u8(0xFF);
-    }*/
-    
-    // Wait for start of data... At least 4 bytes valid
-    /*if (!(wifi_card_read_func1_u8(F1_RX_LOOKAHEAD_VALID) & 1))
-    {
-        wifi_printlnf("d");
-    }
-    while (!(wifi_card_read_func1_u8(F1_RX_LOOKAHEAD_VALID) & 1))
-    {
-        
-    }*/
-    
     u32 header = wifi_card_read_func1_u32(F1_RX_LOOKAHEAD0); // read lookahead
+    
+    u8* read_buffer = mbox_buffer;
     
     u8 pkt_type = header & 0xFF;
     u8 ack_present = (header >> 8) & 0xFF;
     u16 len = header >> 16;
     u16 full_len = round_up(len+6, 0x80);
+    
+    if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 4 || pkt_type == 5))
+        read_buffer = ip_data_out_buf;
     
     // On the off chance that a packet gets parsed incorrectly (full_len off-by-one, etc)
     // just discard in chunks of 4 and be loud about it.
@@ -680,7 +646,7 @@ u16 wifi_card_mbox0_readpkt(void)
         u8 val = wifi_card_read_func1_u8(0xFF); // (0x1000 - full_len)+actual_len
         
         if (actual_len < MBOX_TMPBUF_SIZE)
-            mbox_buffer[actual_len] = val;
+            read_buffer[actual_len] = val;
 
         actual_len++;
         
@@ -696,7 +662,7 @@ u16 wifi_card_mbox0_readpkt(void)
 #else
     u16 actual_len = full_len;
     u16 send_addr = 0x4000 - full_len;
-    wifi_card_read_func1_block(send_addr, mbox_buffer, full_len);
+    wifi_card_read_func1_block(send_addr, read_buffer, full_len);
 #endif
 
     if (!actual_len) return 0;
@@ -707,10 +673,10 @@ u16 wifi_card_mbox0_readpkt(void)
         return actual_len;
     }
     
-    u8 ack_len = mbox_buffer[4];
+    u8 ack_len = read_buffer[4];
     u16 len_pkt = len - ack_len;
-    u16 pkt_cmd = *(u16*)&mbox_buffer[6];
-    u8* pkt_data = &mbox_buffer[8];
+    u16 pkt_cmd = *(u16*)&read_buffer[6];
+    u8* pkt_data = &read_buffer[8];
     
     if (pkt_type == MBOXPKT_HTC)
     {
@@ -726,19 +692,19 @@ u16 wifi_card_mbox0_readpkt(void)
     }
     else
     {
-        wifi_printlnf("wat %02x %02x %02x %02x %02x %02x %02x %02x", mbox_buffer[0], mbox_buffer[1], mbox_buffer[2], mbox_buffer[3], mbox_buffer[4], mbox_buffer[5], mbox_buffer[6], mbox_buffer[7]);
-        wifi_printlnf("wat %02x %02x %02x %02x %02x %02x %02x %02x", mbox_buffer[8+0], mbox_buffer[8+1], mbox_buffer[8+2], mbox_buffer[8+3], mbox_buffer[8+4], mbox_buffer[8+5], mbox_buffer[8+6], mbox_buffer[8+7]);
+        wifi_printlnf("wat %02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[0], read_buffer[1], read_buffer[2], read_buffer[3], read_buffer[4], read_buffer[5], read_buffer[6], read_buffer[7]);
+        wifi_printlnf("wat %02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[8+0], read_buffer[8+1], read_buffer[8+2], read_buffer[8+3], read_buffer[8+4], read_buffer[8+5], read_buffer[8+6], read_buffer[8+7]);
     }
     
     if (ack_present != MBOXPKT_RETACK)
     {
         //wifi_printlnf("%02x %02x %04x %04x", pkt_type, ack_present, len, actual_len);
-        //wifi_printlnf("%02x %02x %02x %02x %02x %02x %02x %02x", mbox_buffer[0], mbox_buffer[1], mbox_buffer[2], mbox_buffer[3], mbox_buffer[4], mbox_buffer[5], mbox_buffer[6], mbox_buffer[7]);
-        //wifi_printlnf("%02x %02x %02x %02x %02x %02x %02x %02x", mbox_buffer[8+0], mbox_buffer[8+1], mbox_buffer[8+2], mbox_buffer[8+3], mbox_buffer[8+4], mbox_buffer[8+5], mbox_buffer[8+6], mbox_buffer[8+7]);
+        //wifi_printlnf("%02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[0], read_buffer[1], read_buffer[2], read_buffer[3], read_buffer[4], read_buffer[5], read_buffer[6], read_buffer[7]);
+        //wifi_printlnf("%02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[8+0], read_buffer[8+1], read_buffer[8+2], read_buffer[8+3], read_buffer[8+4], read_buffer[8+5], read_buffer[8+6], read_buffer[8+7]);
     }
 
-    return len;
     leaveCriticalSection(lock);
+    return len;
 }
 
 //
@@ -913,14 +879,10 @@ void wifi_card_init(void)
     // Read NVRAM settings
     readFirmware(NVRAM_ADDR_WIFICFG, (void*)wifi_card_nvram_configs, sizeof(wifi_card_nvram_configs));
     
-    wifi_card_controller_init();
+    wifi_ndma_init();
+    wifi_sdio_controller_init(REG_SDIO_BASE);
 
     wifi_card_device_init(wifi_card_dev_wlan);
-}
-
-void wifi_card_controller_init(void)
-{
-    wifi_sdio_controller_init(REG_SDIO_BASE);
 }
 
 void wifi_card_send_command(wifi_sdio_command cmd, u32 args)
@@ -933,7 +895,7 @@ void wifi_card_send_command(wifi_sdio_command cmd, u32 args)
 void wifi_card_send_command_alt(wifi_sdio_command cmd, u32 args)
 {
     if(!device_curctx) return;
-    wifi_sdio_send_command_alt(&device_curctx->tmio, cmd, args);
+    wifi_sdio_send_command(&device_curctx->tmio, cmd, args);
 }
 
 int wifi_card_device_init(wifi_card_device device)
@@ -946,7 +908,7 @@ int wifi_card_device_init(wifi_card_device device)
     ctx->device = device;
 
     ctx->tmio.controller = REG_SDIO_BASE;
-    ctx->tmio.clk_cnt = 0; // HCLK divider, 7=512 (largest possible) 0=4
+    ctx->tmio.clk_cnt = 0; // HCLK divider, 7=512 (largest possible) 0=2
     ctx->tmio.bus_width = 1;
 
     switch(device)
@@ -989,12 +951,6 @@ void wifi_card_irq(void)
     
     wifi_card_write_func1_u32(F1_INT_STATUS_ENABLE, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
     wifi_card_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
-}
-
-static u32 wifi_fifoGet32()
-{
-    while(!fifoCheckValue32(FIFO_DSWIFI));
-    return fifoGetValue32(FIFO_DSWIFI);
 }
 
 static void wifi_card_handleMsg(int len, void* user_data)
@@ -1267,19 +1223,7 @@ skip_opcond:
         if(ctx->tmio.status & 4) return -1;
     }
 
-#if 0
-    for (int i = 0; i < 0xB; i++)
-    {
-        wifi_printf("%02x ", wifi_card_read_func0_u8(i));
-    }
-    wifi_printf("\n");
-
-    for (int i = 0xB; i < 0x16; i++)
-    {
-        wifi_printf("%02x ", wifi_card_read_func0_u8(i));
-    }
-    wifi_printf("\n");
-#endif
+    // Required?
     ioDelay(0xF000);
 
     // Read register 0x00 (Revision)
@@ -1508,36 +1452,6 @@ void wifi_card_switch_device(wifi_card_ctx* ctx)
     wifi_sdio_switch_device(&ctx->tmio);
     
     device_curctx = ctx;
-}
-
-u16 wifi_card_read16(u16 reg)
-{
-    return wifi_sdio_read16(REG_SDIO_BASE, reg);
-}
-
-u32 wifi_card_read32(u16 reg)
-{
-    return wifi_sdio_read32(REG_SDIO_BASE, reg);
-}
-
-void wifi_card_write16(u16 reg, u16 val)
-{
-    wifi_sdio_write16(REG_SDIO_BASE, reg, val);
-}
-
-void wifi_card_write32(u16 reg, u32 val)
-{
-    wifi_sdio_write32(REG_SDIO_BASE, reg, val);
-}
-
-void wifi_card_mask16(u16 reg, u16 clear, u16 set)
-{
-    wifi_sdio_mask16(REG_SDIO_BASE, reg, clear, set);
-}
-
-void wifi_card_mask32(u16 reg, u32 clear, u32 set)
-{
-    wifi_sdio_mask32(REG_SDIO_BASE, reg, clear, set);
 }
 
 void wifi_card_setclk(u32 data)

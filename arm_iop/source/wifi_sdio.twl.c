@@ -10,6 +10,10 @@
 #include "wifi_debug.h"
 #endif
 
+#include "wifi_ndma.h"
+
+#define WIFI_SDIO_NDMA
+
 void wifi_sdio_controller_init(void* controller)
 {
     void* c = controller;
@@ -20,17 +24,9 @@ void wifi_sdio_controller_init(void* controller)
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x0000, 0x0402);
 
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0022, 0x0002);
-#ifndef WIFI_SDIO_DATA32
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x0002, 0x0000);
-#endif
 
-#ifdef WIFI_SDIO_DATA32
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0020, 0x0000);
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 128);
-#else
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0022, 0x0000);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0);
-#endif
 
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_CNT, 0x0001);
 
@@ -45,13 +41,8 @@ void wifi_sdio_controller_init(void* controller)
 
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_PORT_SEL, 0b11, 0);
 
-#ifdef WIFI_SDIO_DATA32
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CLK_CNT, 0x0020);
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CARD_OPT, 0x40EE);
-#else
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_CLK_CNT, 0x0040);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_CARD_OPT, 0x80D0);
-#endif
 
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x8000, 0x0000);
     wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x0000, 0x0100);
@@ -80,9 +71,7 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     u16 stat0 = 0, stat1 = 0;
     u16 stat0_completion_flags = 0;
 
-#ifdef WIFI_SDIO_DATA32
     u16 cnt32 = 0;
-#endif
 
     // Are we expecting a response? We need to wait for it.
     if(cmd.response_type != wifi_sdio_resp_none)
@@ -98,33 +87,43 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
                 cmd.raw, cmd.cmd, stat0_completion_flags, ctx->port, ctx->address);
 #endif
 
-#ifdef WIFI_SDIO_DATA32
     bool buffer32 = false;
     if(buffer && ((u32)buffer & 3) == 0) buffer32 = true;
-#endif
+    
+    // Force alignment
+    if (buffer && !buffer32) {
+        ctx->status |= 4;
+        return;
+    }
 
     // Wait until the SDIO controller is not busy.
     while(wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1) & WIFI_SDIO_STAT1_CMD_BUSY);
 
-    // ACK all interrupts.
+    // ACK all interrupts and halt
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT0, 0);
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT1, 0);
-
-#ifndef WIFI_SDIO_DATA32
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x1800, 0);
-#endif
-
-    // Set block len
-#ifdef WIFI_SDIO_DATA32
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, ctx->block_size);
-#else
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0);
-#endif
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_LEN, ctx->block_size);
-
+    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_STOP, 1, 0);
+    
     // Write command arguments.
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD_PARAM0, args & 0xFFFF);
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD_PARAM1, args >> 16);
+
+    // Set block len and counts
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_LEN, ctx->block_size);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_CNT, size / ctx->block_size);
+    
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, ctx->block_size);
+    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_CNT, size / ctx->block_size);    
+
+    // Data32 mode
+    bool is_block = (cmd.data_length == wifi_sdio_multiple_block);
+    if (is_block) {
+        wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0002);
+        if(cmd.data_direction == wifi_sdio_data_read)
+            wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ32, 0xC02);
+        else
+            wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ32, 0x1402);
+    }
 
     // Write command.
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD, cmd.raw);
@@ -133,16 +132,10 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     {
         stat1 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1);
 
-#ifdef WIFI_SDIO_DATA32
         cnt32 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ32);
-#endif
 
         // Ready to receive data.
-#ifdef WIFI_SDIO_DATA32
         if(cnt32 & 0x100)
-#else
-        if(stat1 & WIFI_SDIO_STAT1_RXRDY)
-#endif
         {
             // Are we actually meant to receive data?
             if(cmd.data_direction == wifi_sdio_data_read && buffer)
@@ -152,36 +145,26 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
 
                 if(size > ctx->block_size - 1)
                 {
+#ifdef WIFI_SDIO_NDMA
+                    wifi_ndma_read(buffer, ctx->block_size);
+                    buffer += ctx->block_size;
+#else
                     void* buffer_end = buffer + ctx->block_size;
 
                     while(buffer != buffer_end)
                     {
-#ifdef WIFI_SDIO_DATA32
-                        if(buffer32)
-                        {
-                            *(u32*)buffer = wifi_sdio_read32(c, WIFI_SDIO_OFFS_DATA32_FIFO);
-                            buffer += sizeof(u32);
-                        }
-                        else
-#endif
-                        {
-                            *(u16*)buffer = wifi_sdio_read16(c, WIFI_SDIO_OFFS_DATA16_FIFO);
-                            buffer += sizeof(u16);
-                        }
-
+                        *(u32*)buffer = wifi_sdio_read32(c, WIFI_SDIO_OFFS_DATA32_FIFO);
+                        buffer += sizeof(u32);
                     }
-
+#endif
                     size -= ctx->block_size;
                 }
             }
         }
 
         // Data transmission requested.
-#ifdef WIFI_SDIO_DATA32
-        if(!(cnt32 & 0x200))
-#else
+        //if(!(cnt32 & 0x200))
         if(stat1 & WIFI_SDIO_STAT1_TXRQ)
-#endif
         {
             // Are we actually meant to write data?
             if(cmd.data_direction == wifi_sdio_data_write && buffer)
@@ -191,29 +174,19 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
 
                 if(size > ctx->block_size-1)
                 {
+#ifdef WIFI_SDIO_NDMA
+                    wifi_ndma_write(buffer, ctx->block_size);
+                    buffer += ctx->block_size;
+#else
                     void* buffer_end = buffer + ctx->block_size;
 
                     while(buffer != buffer_end)
                     {
-#ifdef WIFI_SDIO_DATA32
-                        if(buffer32)
-                        {
-                            u32 data = *(u32*)buffer;
-                            buffer += sizeof(u32);
-                            wifi_sdio_write32(c, WIFI_SDIO_OFFS_DATA32_FIFO, data);
-                        }
-                        else
-#endif
-                        {
-                            u16 data = *(u16*)buffer;
-                            buffer += sizeof(u16);
-                            wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_FIFO, data);
-                        }
-
-                        //if(ctx->debug)
-                        //    wifi_printlnf("XFER: %04X %04x", buffer_end - buffer, size);
+                        u32 data = *(u32*)buffer;
+                        buffer += sizeof(u32);
+                        wifi_sdio_write32(c, WIFI_SDIO_OFFS_DATA32_FIFO, data);
                     }
-
+#endif
                     size -= ctx->block_size;
                 }
             }
@@ -230,9 +203,15 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
             ctx->status |= 4;
             break;
         }
+        
+        bool end_cond = !(stat1 & WIFI_SDIO_STAT1_CMD_BUSY);
+        if (is_block) {
+            stat0 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT0);
+            end_cond = (stat0 & WIFI_SDIO_STAT0_CMDRESPEND && !size);
+        }
 
         // Not busy...
-        if(!(stat1 & WIFI_SDIO_STAT1_CMD_BUSY))
+        if(end_cond)
         {
             stat0 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT0);
 
@@ -294,266 +273,6 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     }
 #endif
 }
-
-// This is for SDIO specifically, for now.
-void wifi_sdio_send_command_alt(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
-{
-    if(!ctx) return;
-    void* c = ctx->controller;
-    if(!c) return;
-
-    // Safety fallback
-    if (!ctx->block_size)
-        ctx->block_size = 512;
-
-    void* buffer = ctx->buffer;
-    size_t size = ctx->size;
-
-    ctx->status = 0;
-    u16 stat0 = 0, stat1 = 0;
-    u16 stat0_completion_flags = 0;
-
-#ifdef WIFI_SDIO_DATA32
-    u16 cnt32 = 0;
-#endif
-
-    // Are we expecting a response? We need to wait for it.
-    if(cmd.response_type != wifi_sdio_resp_none)
-        stat0_completion_flags |= WIFI_SDIO_STAT0_CMDRESPEND;
-
-    // Are we doing a data transfer? We need to wait for it to end.
-    if(cmd.data_transfer)
-        stat0_completion_flags |= WIFI_SDIO_STAT0_DATAEND;
-
-#ifdef WIFI_SDIO_DEBUG
-    if(ctx->debug) {
-        wifi_printlnf("CMD#: 0x%04X (%lu) (%X) -> %u:%u",
-                cmd.raw, cmd.cmd, stat0_completion_flags, ctx->port, ctx->address);
-    }
-#endif
-
-#ifdef WIFI_SDIO_DATA32
-    bool buffer32 = false;
-    if(buffer && ((u32)buffer & 3) == 0) buffer32 = true;
-#endif
-
-    // Wait until the SDIO controller is not busy.
-    while(wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1) & WIFI_SDIO_STAT1_CMD_BUSY);
-
-    // ACK all interrupts and halt
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT0, 0);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT1, 0);
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_STOP, 1, 0);
-    
-    // Write command arguments.
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD_PARAM0, args & 0xFFFF);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD_PARAM1, args >> 16);
-
-#ifndef WIFI_SDIO_DATA32
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ32, 0x1800, 0);
-#endif
-
-    // Set block len and counts
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_LEN, ctx->block_size);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_BLK_CNT, size / ctx->block_size);
-    
-#ifdef WIFI_SDIO_DATA32
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, ctx->block_size);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_CNT, size / ctx->block_size);
-#else
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA32_BLK_LEN, 0);
-#endif
-    
-    // Data32 mode
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_CNT, 0x0002);
-    if(cmd.data_direction == wifi_sdio_data_read)
-        wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ32, 0xC02);
-    else
-        wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ32, 0x1402);
-
-    // Write command.
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD, cmd.raw);
-
-#ifdef WIFI_SDIO_DEBUG
-    if(ctx->debug) {
-        wifi_printlnf("Begin");
-    }
-#endif
-
-    while(true)
-    {
-        stat1 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1);
-
-#ifdef WIFI_SDIO_DATA32
-        cnt32 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ32);
-#endif
-
-        // Ready to receive data.
-#ifdef WIFI_SDIO_DATA32
-        if(cnt32 & 0x100)
-#else
-        if(stat1 & WIFI_SDIO_STAT1_RXRDY)
-#endif
-        {
-            // Are we actually meant to receive data?
-            if(cmd.data_direction == wifi_sdio_data_read && buffer)
-            {
-                // ACK ready state.
-                wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ_STAT1, WIFI_SDIO_STAT1_RXRDY, 0);
-
-                if(size > ctx->block_size - 1)
-                {
-                    void* buffer_end = buffer + ctx->block_size;
-
-                    while(buffer != buffer_end)
-                    {
-#ifdef WIFI_SDIO_DATA32
-                        if(buffer32)
-                        {
-                            *(u32*)buffer = wifi_sdio_read32(c, WIFI_SDIO_OFFS_DATA32_FIFO);
-                            buffer += sizeof(u32);
-                        }
-                        else
-#endif
-                        {
-                            *(u16*)buffer = wifi_sdio_read16(c, WIFI_SDIO_OFFS_DATA16_FIFO);
-                            buffer += sizeof(u16);
-                        }
-
-                    }
-
-                    size -= ctx->block_size;
-                }
-            }
-        }
-
-        // Data transmission requested.
-/*#ifdef WIFI_SDIO_DATA32
-        if(!(cnt32 & 0x200))
-#else*/
-        if(stat1 & WIFI_SDIO_STAT1_TXRQ)
-//#endif
-        {
-#ifdef WIFI_SDIO_DEBUG
-            //if(ctx->debug)
-            //    wifi_printlnf("TX Ready %x %x", cmd.data_direction == wifi_sdio_data_write, buffer);
-#endif
-            // Are we actually meant to write data?
-            if(cmd.data_direction == wifi_sdio_data_write && buffer)
-            {
-                // ACK request.
-                wifi_sdio_mask16(c, WIFI_SDIO_OFFS_IRQ_STAT1, WIFI_SDIO_STAT1_TXRQ, 0);
-
-                if(size > ctx->block_size-1)
-                {
-                    void* buffer_end = buffer + ctx->block_size;
-
-                    while(buffer != buffer_end)
-                    {
-#ifdef WIFI_SDIO_DATA32
-                        if(buffer32)
-                        {
-                            u32 data = *(u32*)buffer;
-                            buffer += sizeof(u32);
-                            wifi_sdio_write32(c, WIFI_SDIO_OFFS_DATA32_FIFO, data);
-                        }
-                        else
-#endif
-                        {
-                            u16 data = *(u16*)buffer;
-                            buffer += sizeof(u16);
-                            wifi_sdio_write16(c, WIFI_SDIO_OFFS_DATA16_FIFO, data);
-                        }
-
-                        //if(ctx->debug)
-                        //    wifi_printlnf("XFER: %04X %04x", buffer_end - buffer, size);
-                    }
-
-                    size -= ctx->block_size;
-                }
-            }
-        }
-
-        // Has an error been asserted? Exit if so.
-        if(stat1 & WIFI_SDIO_MASK_ERR)
-        {
-#ifdef WIFI_SDIO_DEBUG
-            if(ctx->debug) {
-                wifi_printlnf("ERR#: %04X 0000", stat1 & WIFI_SDIO_MASK_ERR);
-            }
-#endif
-            // Error flag.
-            ctx->status |= 4;
-            break;
-        }
-        
-        stat0 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT0);
-
-        // Not busy...
-        if(stat0 & WIFI_SDIO_STAT0_CMDRESPEND && !size)
-        {
-            // Set response end flag.
-            if(stat0 & WIFI_SDIO_STAT0_CMDRESPEND)
-                ctx->status |= 1;
-
-            // Set data end flag.
-            if(stat0 & WIFI_SDIO_STAT0_DATAEND)
-                ctx->status |= 2;
-
-            // If done (all completion criteria), exit.
-            if((stat0 & stat0_completion_flags) == stat0_completion_flags)
-                break;
-        }
-
-        if(ctx->break_early && !size)
-        {
-            break;
-        }
-    }
-
-    ctx->stat0 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT0);
-    ctx->stat1 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1);
-
-    ctx->err0 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_ERR_DETAIL0);
-    ctx->err1 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_ERR_DETAIL1);
-
-    // ACK all interrupts.
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT0, 0);
-    wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT1, 0);
-
-    // If the command has a response, pull it in to sdmmc_ctx.
-    if(cmd.response_type != wifi_sdio_resp_none)
-    {
-        ctx->resp[0] = wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP0) | (u32)(wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP1) << 16);
-        ctx->resp[1] = wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP2) | (u32)(wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP3) << 16);
-        ctx->resp[2] = wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP4) | (u32)(wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP5) << 16);
-        ctx->resp[3] = wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP6) | (u32)(wifi_sdio_read16(c, WIFI_SDIO_OFFS_RESP7) << 16);
-    }
-
-#ifdef WIFI_SDIO_DEBUG
-    if(ctx->debug)
-    {
-        wifi_printlnf("STAT: %04X %04X (%lX) INFO: %04X %04X", ctx->stat1, ctx->stat0,
-                ctx->status, ctx->err1, ctx->err0);
-
-        if(cmd.response_type != wifi_sdio_resp_none)
-        {
-            if(cmd.response_type == wifi_sdio_resp_136bit)
-            {
-                wifi_printlnf("RESP: %08lX %08lX %08lX %08lX",
-                        ctx->resp[0], ctx->resp[1], ctx->resp[2], ctx->resp[3]);
-            }
-            else
-            {
-                wifi_printlnf("RESP: %08lX", ctx->resp[0]);
-            }
-        }
-
-        wifi_printlnf("");
-    }
-#endif
-}
-
 
 void wifi_sdio_switch_device(wifi_sdio_ctx* ctx)
 {

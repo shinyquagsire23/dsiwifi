@@ -81,15 +81,6 @@ void wifi_card_switch_device(wifi_card_ctx* ctx);
 void wifi_card_send_command(wifi_sdio_command cmd, u32 args);
 void wifi_card_send_command_alt(wifi_sdio_command cmd, u32 args);
 
-u16 wifi_card_read16(u16 reg);
-u32 wifi_card_read32(u16 reg);
-
-void wifi_card_write16(u16 reg, u16 val);
-void wifi_card_write32(u16 reg, u32 val);
-
-void wifi_card_mask16(u16 reg, u16 clear, u16 set);
-void wifi_card_mask32(u16 reg, u32 clear, u32 set);
-
 void wifi_card_setclk(u32 data);
 void wifi_card_stop(void);
 
