@@ -521,7 +521,7 @@ void data_handle_pkt(u8* pkt_data, u32 len)
         msg.pkt_data = ip_data_out_buf;
         msg.pkt_len = len;
         fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
-        wifi_printf("sync\n");
+        wifi_printf(""); // HACK force ARM7 to wait for ARM9 to copy packet
 #if 0
         data_send_to_lwip(pkt_data, len);
 #endif

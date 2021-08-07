@@ -21,6 +21,7 @@
 #define WIFI_IPCINT_DEVICE_MAC  (3)
 #define WIFI_IPCINT_AP_MAC      (4)
 #define WIFI_IPCINT_PKTDATA     (5)
+#define WIFI_IPCINT_DBGLOG      (6)
 
 typedef struct Wifi_FifoMsg
 {
@@ -40,5 +41,30 @@ typedef struct Wifi_FifoMsg
         };
     };
 } Wifi_FifoMsg;
+
+// Includes bytes for logging
+typedef struct Wifi_FifoMsgExt
+{
+    u32 cmd;
+    union
+    {
+        struct
+        {
+            u8 mac_addr[6];
+            u8 pad[2];
+        };
+        
+        struct
+        {
+            void* pkt_data;
+            u32 pkt_len;
+        };
+        
+        struct
+        {
+            char log_str[64-4];
+        };
+    };
+} Wifi_FifoMsgExt;
 
 #endif // _DSIWIFI_CMDS_H

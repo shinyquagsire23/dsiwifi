@@ -10,12 +10,13 @@
 #include <stdio.h>
 #include <string.h>
 
-extern char _print_buffer[0x80];
+extern char _print_buffer[0x7C];
 
 void wifi_printf(char* fmt, ...);
 void wifi_printlnf(char* fmt, ...);
 
 void wifi_ipcSendString(char* ptr);
+void wifi_ipcSendStringAlt(char* ptr);
 
 //#define wifi_printf(...) {snprintf(_print_buffer, 0x100-1, __VA_ARGS__); wifi_ipcSendString(_print_buffer);}
 //#define wifi_printlnf(...) {snprintf(_print_buffer, 0x100-1, __VA_ARGS__); wifi_ipcSendString(_print_buffer); wifi_ipcSendString("\n");}

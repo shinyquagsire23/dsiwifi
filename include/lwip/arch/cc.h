@@ -47,6 +47,7 @@ typedef uintptr_t   mem_ptr_t;
 #define LWIP_PLATFORM_ASSERT(x) do {                \
         wifi_printf("Assert \"%s\" failed at line %d in %s\n",   \
                 x, __LINE__, __FILE__);             \
+        while (1); \
     } while (0)
 
 #endif /* __ARCH_CC_H__ */

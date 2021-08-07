@@ -22,12 +22,10 @@
 #include "lwip/netbiosns.h"
 
 #include "dsiwifi_cmds.h"
+#include "rpc.h"
 
 static u8 device_mac[6];
 static u8 ap_mac[6];
-
-static void* data_todo[16] = {0};
-static void* data_toto_len[16] = {0};
 
 static bool host_bInitted = false;
 static bool host_bLwipInitted = false;
@@ -97,7 +95,7 @@ err_t ath_link_output(struct netif *netif, struct pbuf *p)
 {
     // TODO pbuf_coalesce?
     
-    wifi_printlnf("link output %x", p->len);
+    //wifi_printlnf("link output %x", p->len);
     
     data_send_link(p->payload, p->len);
     
@@ -124,7 +122,7 @@ void data_send_to_lwip(void* data, u32 len)
     
     memcpy(p->payload, data, len);
     
-    wifi_printlnf("link in 0x%x bytes", len);
+    //wifi_printlnf("link in 0x%x bytes", len);
     
     if (ath_netif.input(p, &ath_netif) != ERR_OK) {
         pbuf_free(p);
@@ -184,8 +182,8 @@ static void wifi_host_lwip_init()
     if (host_bLwipInitted) {
         if (host_bNeedsDHCPRenew)
         {
-            //rpc_deinit();
-            //rpc_init();
+            rpc_deinit();
+            rpc_init();
 
             dhcp_start(&ath_netif);
             host_bNeedsDHCPRenew = false;
@@ -216,7 +214,7 @@ static void wifi_host_lwip_init()
     
     dhcp_start(&ath_netif);
     
-    //rpc_init();
+    rpc_init();
     
     host_bLwipInitted = true;
     host_bNeedsDHCPRenew = false;
@@ -224,7 +222,7 @@ static void wifi_host_lwip_init()
 
 static void wifi_host_handleMsg(int len, void* user_data)
 {
-    Wifi_FifoMsg msg;
+    Wifi_FifoMsgExt msg;
     
     if (len < 4)
     {
@@ -244,7 +242,6 @@ static void wifi_host_handleMsg(int len, void* user_data)
         wifi_host_init_bufs();
         
         host_bInitted = true;
-        host_bLwipInitted = false;
     }
     else if (cmd == WIFI_IPCINT_CONNECT)
     {
@@ -270,6 +267,10 @@ static void wifi_host_handleMsg(int len, void* user_data)
         u32 len = msg.pkt_len;
 
         data_send_to_lwip(data, len);
+    }
+    else if (cmd == WIFI_IPCINT_DBGLOG)
+    {
+        wifi_printf("%s", msg.log_str);
     }
     else
     {

@@ -11,17 +11,17 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-char _print_buffer[0x80] = {0};
+char __print_buffer[0x200] = {0};
 
 void wifi_printf(char* fmt, ...)
 {
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
-    vsnprintf(_print_buffer, 0x80-1, fmt, args);
+    vsnprintf(__print_buffer, 0x200-1, fmt, args);
     va_end(args);
 
-    iprintf("%s", _print_buffer);
+    iprintf("%s", __print_buffer);
     leaveCriticalSection(lock);
 }
 
@@ -30,10 +30,10 @@ void wifi_printlnf(char* fmt, ...)
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
-    vsnprintf(_print_buffer, 0x80-2, fmt, args);
-    strcat(_print_buffer, "\n");
+    vsnprintf(__print_buffer, 0x200-2, fmt, args);
+    strcat(__print_buffer, "\n");
     va_end(args);
 
-    iprintf("%s", _print_buffer);
+    iprintf("%s", __print_buffer);
     leaveCriticalSection(lock);
 }
