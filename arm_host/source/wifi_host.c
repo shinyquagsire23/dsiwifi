@@ -31,8 +31,8 @@ static bool host_bInitted = false;
 static bool host_bLwipInitted = false;
 static bool host_bNeedsDHCPRenew = false;
 
-static u8 __attribute((aligned(16))) ip_data_buf[0x4000];
-static u8 __attribute((aligned(16))) ip_data_in_buf[0x4000];
+static u8 __attribute((aligned(16))) ip_data_buf[0x600];
+static u8 __attribute((aligned(16))) ip_data_in_buf[0x600];
 
 // LWIP state
 static struct netif ath_netif = {0};
@@ -79,7 +79,7 @@ err_t ath_init_fn(struct netif *netif)
 {
     ath_netif.output = etharp_output;
     ath_netif.linkoutput = ath_link_output;
-    ath_netif.mtu = 0x5E0;
+    ath_netif.mtu = 0x580;
         
     ath_netif.name[0] = 'w';
     ath_netif.name[1] = 'l';

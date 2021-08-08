@@ -128,6 +128,19 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     // Write command.
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD, cmd.raw);
 
+#ifdef WIFI_SDIO_NDMA
+    if(cmd.data_direction == wifi_sdio_data_read && buffer)
+    {
+        wifi_ndma_read(buffer, size);
+        return;
+    }
+    else if (cmd.data_direction == wifi_sdio_data_write && buffer)
+    {
+        wifi_ndma_write(buffer, size);
+        return;
+    }
+#endif
+
     while(true)
     {
         stat1 = wifi_sdio_read16(c, WIFI_SDIO_OFFS_IRQ_STAT1);

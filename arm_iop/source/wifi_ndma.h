@@ -67,5 +67,6 @@
 void wifi_ndma_init();
 void wifi_ndma_read(void* dst, u32 len);
 void wifi_ndma_write(void* src, u32 len);
+void wifi_ndma_wait();
 
 #endif // _DSIWIFI_WIFI_NDMA_H

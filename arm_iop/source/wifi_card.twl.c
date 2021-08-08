@@ -459,7 +459,7 @@ void wifi_card_mbox0_sendbytes(const u8* data, u32 len)
 
 void wifi_card_mbox0_send_packet(u8 type, u8 ack_type, const u8* data, u16 len, u16 idk)
 {
-    memset(mbox_out_buffer, 0x0, round_up(len, 0x80));
+    //memset(mbox_out_buffer, 0x0, round_up(len, 0x80));
 
     mbox_out_buffer[0] = type;
     mbox_out_buffer[1] = ack_type;
@@ -526,7 +526,7 @@ void data_handle_pkt(u8* pkt_data, u32 len)
         msg.pkt_data = pkt_data;//ip_data_out_buf;
         msg.pkt_len = len;
         fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
-        wifi_printf(""); // HACK force ARM7 to wait for ARM9 to copy packet
+        //wifi_printf(""); // HACK force ARM7 to wait for ARM9 to copy packet
 #if 0
         data_send_to_lwip(pkt_data, len);
 #endif
@@ -675,6 +675,10 @@ u16 wifi_card_mbox0_readpkt(void)
         wifi_printlnf("Packet too short?? %x", actual_len);
         return actual_len;
     }
+
+#ifndef SDIO_NO_BLOCKRW
+    wifi_ndma_wait();
+#endif
     
     u8 ack_len = read_buffer[4];
     u16 len_pkt = len - ack_len;
