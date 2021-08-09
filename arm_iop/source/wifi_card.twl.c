@@ -555,7 +555,7 @@ void data_send_pkt(u8* pkt_data, u32 len)
 void data_send_pkt_idk(u8* pkt_data, u32 len)
 {
     int lock = enterCriticalSection();
-    wifi_card_mbox0_send_packet(0x02, MBOXPKT_NOACK, pkt_data, len, 0); // 0x2008 causes broadcast packets?
+    wifi_card_mbox0_send_packet(0x02, MBOXPKT_NOACK, pkt_data, len, 0x2008); // 0x2008 causes broadcast packets? and might be faster?
     leaveCriticalSection(lock);
 }
 

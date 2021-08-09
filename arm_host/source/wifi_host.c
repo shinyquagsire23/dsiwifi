@@ -42,7 +42,7 @@ static ip_addr_t gw_addr = {0}, netmask = {0};
 void ath_lwip_tick();
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
 
-#define HOST_TICK_INTERVAL_MS (1)
+#define HOST_TICK_INTERVAL_US (10)
 
 static void wifi_print_mac(const char* prefix, const u8* mac)
 {
@@ -301,16 +301,20 @@ void wifi_host_tick_display()
 
 void wifi_host_tick()
 {
-    sys_now_inc(HOST_TICK_INTERVAL_MS);
+    static int inc_cnt = 0;
+    
+    if (inc_cnt++ == (1000 / HOST_TICK_INTERVAL_US)) {
+        sys_now_inc(1);
+        inc_cnt = 0;
+    }
+    timerStop(3);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(HOST_TICK_INTERVAL_US), wifi_host_tick);
     
     if (host_bLwipInitted)
     {
         ath_lwip_tick();
         wifi_host_tick_display();
     }
-    
-    timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000 / HOST_TICK_INTERVAL_MS), wifi_host_tick);
 }
 
 void wifi_host_init()
@@ -318,7 +322,7 @@ void wifi_host_init()
     wifi_printf("wifi_host_init\n");
     
     // 100ms timer
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000 / HOST_TICK_INTERVAL_MS), wifi_host_tick); //((u64)TIMER_CLOCK * SDIO_TICK_INTERVAL_MS) / 1000
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(HOST_TICK_INTERVAL_US), wifi_host_tick);
     
     // Enable FIFO handlers
     //fifoSetValue32Handler(FIFO_DSWIFI, wifi_host_handleFifo32, 0);
