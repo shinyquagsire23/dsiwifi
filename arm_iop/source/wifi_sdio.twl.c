@@ -102,7 +102,7 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     // ACK all interrupts and halt
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT0, 0);
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_IRQ_STAT1, 0);
-    wifi_sdio_mask16(c, WIFI_SDIO_OFFS_STOP, 1, 0);
+    //wifi_sdio_mask16(c, WIFI_SDIO_OFFS_STOP, 1, 0);
     
     // Write command arguments.
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD_PARAM0, args & 0xFFFF);
@@ -129,12 +129,12 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
     wifi_sdio_write16(c, WIFI_SDIO_OFFS_CMD, cmd.raw);
 
 #ifdef WIFI_SDIO_NDMA
-    if(cmd.data_direction == wifi_sdio_data_read && buffer)
+    if(cmd.data_direction == wifi_sdio_data_read && is_block && buffer)
     {
         wifi_ndma_read(buffer, size);
         return;
     }
-    else if (cmd.data_direction == wifi_sdio_data_write && buffer)
+    else if (cmd.data_direction == wifi_sdio_data_write && is_block && buffer)
     {
         wifi_ndma_write(buffer, size);
         return;
@@ -158,18 +158,21 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
 
                 if(size > ctx->block_size - 1)
                 {
-#ifdef WIFI_SDIO_NDMA
-                    wifi_ndma_read(buffer, ctx->block_size);
-                    buffer += ctx->block_size;
-#else
+//#ifdef WIFI_SDIO_NDMA
+                    //wifi_ndma_read(buffer, ctx->block_size);
+                    //buffer += ctx->block_size;
+//#else
                     void* buffer_end = buffer + ctx->block_size;
-
+                    
                     while(buffer != buffer_end)
                     {
                         *(u32*)buffer = wifi_sdio_read32(c, WIFI_SDIO_OFFS_DATA32_FIFO);
+                        
+                        //wifi_printlnf("asdf %x", *(u32*)buffer);
+                        
                         buffer += sizeof(u32);
                     }
-#endif
+//#endif
                     size -= ctx->block_size;
                 }
             }
@@ -187,10 +190,10 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
 
                 if(size > ctx->block_size-1)
                 {
-#ifdef WIFI_SDIO_NDMA
-                    wifi_ndma_write(buffer, ctx->block_size);
-                    buffer += ctx->block_size;
-#else
+//#ifdef WIFI_SDIO_NDMA
+                    //wifi_ndma_write(buffer, ctx->block_size);
+                    //buffer += ctx->block_size;
+//#else
                     void* buffer_end = buffer + ctx->block_size;
 
                     while(buffer != buffer_end)
@@ -199,7 +202,7 @@ void wifi_sdio_send_command(wifi_sdio_ctx* ctx, wifi_sdio_command cmd, u32 args)
                         buffer += sizeof(u32);
                         wifi_sdio_write32(c, WIFI_SDIO_OFFS_DATA32_FIFO, data);
                     }
-#endif
+//#endif
                     size -= ctx->block_size;
                 }
             }

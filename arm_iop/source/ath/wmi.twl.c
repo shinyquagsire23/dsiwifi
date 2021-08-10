@@ -647,11 +647,11 @@ void wmi_connect()
     
     wmi_set_channel_params(ap_channel);
     
-    u16 tmp16 = 0xFFF;
-    wmi_send_pkt(WMI_SET_FIXRATES_CMD, MBOXPKT_REQACK, &tmp16, sizeof(tmp16));
+    //u16 tmp16 = 0xFFF;
+    //wmi_send_pkt(WMI_SET_FIXRATES_CMD, MBOXPKT_REQACK, &tmp16, sizeof(tmp16));
     
-    wmi_set_bitrate();
-    wmi_set_framerate();
+    //wmi_set_bitrate();
+    //wmi_set_framerate();
     
     u8 tmp8 = 0;
     wmi_idk = 0x2008;
