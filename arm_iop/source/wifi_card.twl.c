@@ -1157,9 +1157,7 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
     ctx->tmio.bus_width = 4;
     wifi_card_switch_device(ctx);
     ioDelay(0xF000);
-    
-    //wifi_card_write_func0_u8(0x6, 0x8);
-    
+
     // Read register 0x00 (Revision) as a test
     wifi_card_read_func0_u8(0x00);
     if(ctx->tmio.status & 4) {
@@ -1167,9 +1165,6 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
         wifi_card_switch_device(ctx);
         wifi_printlnf("Failed to read revision, assuming 1bit");
     }
-
-    //wifi_card_write_func0_u8(0x02, 0);
-    
 
     //if(is_firstboot)
     {

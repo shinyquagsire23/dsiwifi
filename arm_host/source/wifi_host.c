@@ -46,8 +46,6 @@ static ip_addr_t gw_addr = {0}, netmask = {0};
 void ath_lwip_tick();
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
 
-#define HOST_TICK_INTERVAL_US (5)
-
 static void wifi_print_mac(const char* prefix, const u8* mac)
 {
     if (prefix) {
@@ -289,7 +287,7 @@ void wifi_host_tick_display()
 {
     static int counter = 100000;
     
-    if (counter++ > 2*1000) // (1000 / HOST_TICK_INTERVAL_US)
+    if (counter++ > 2*1000)
     {
         u32 addr = ath_netif.ip_addr.addr;
         u8 addr_bytes[4];

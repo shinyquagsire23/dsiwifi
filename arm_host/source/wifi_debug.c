@@ -6,6 +6,8 @@
 
 #include "wifi_debug.h"
 
+#include "dsiwifi_arm9.h"
+
 #include <nds.h>
 #include <nds/interrupts.h>
 #include <stdio.h>
@@ -15,18 +17,25 @@ char __print_buffer[0x200] = {0};
 
 void wifi_printf(char* fmt, ...)
 {
+    if (!DSiWifi_pfnLogHandler)
+        return;
+
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
     vsnprintf(__print_buffer, 0x200-1, fmt, args);
     va_end(args);
 
-    iprintf("%s", __print_buffer);
+    DSiWifi_pfnLogHandler(__print_buffer);
+    
     leaveCriticalSection(lock);
 }
 
 void wifi_printlnf(char* fmt, ...)
 {
+    if (!DSiWifi_pfnLogHandler)
+        return;
+
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
@@ -34,6 +43,7 @@ void wifi_printlnf(char* fmt, ...)
     strcat(__print_buffer, "\n");
     va_end(args);
 
-    iprintf("%s", __print_buffer);
+    DSiWifi_pfnLogHandler(__print_buffer);
+
     leaveCriticalSection(lock);
 }

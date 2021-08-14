@@ -10,6 +10,11 @@
 
 #include "dsiwifi9.h"
 
+void appwifi_log(const char* s)
+{
+    iprintf("%s", s);
+}
+
 //---------------------------------------------------------------------------------
 int main(void) {
 //---------------------------------------------------------------------------------
@@ -18,8 +23,10 @@ int main(void) {
 	defaultExceptionHandler();
 
 	consoleDemoInit();  //setup the sub screen for printing
+	consoleDebugInit(DebugDevice_CONSOLE);
 
-    Wifi_InitDefault(true);
+    DSiWifi_SetLogHandler(appwifi_log);
+    DSiWifi_InitDefault(true);    
 
 	while(1) {
 
