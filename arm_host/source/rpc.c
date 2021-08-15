@@ -105,7 +105,7 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
 
 err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
-    if (p == NULL)
+    if (p == NULL && err == ERR_OK)
     {
         if (payload_read_left)
         {
@@ -114,6 +114,12 @@ err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 
         wifi_printlnf("rpc_recv close");
         goto no_ack_cleanup;
+    }
+    
+    if (err != ERR_OK)
+    {
+        wifi_printlnf("rpc_recv err? %d", err);
+        return ERR_OK;
     }
     
     // Make sure we have one buffer
@@ -125,9 +131,6 @@ err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
     
     u8* payload_read = (u8*)p->payload;
     int packet_left = p->tot_len;
-    
-    // Ack the packet
-    tcp_recved(tpcb, p->tot_len);
     
     rpc_timeout = 0;
     
@@ -178,6 +181,9 @@ err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
         if (!payload_read_left)
             rpc_proc_buffer(tpcb);
     }
+    
+    // Ack the packet
+    tcp_recved(tpcb, p->tot_len);
     
     // Free received buffer
     pbuf_free(p);

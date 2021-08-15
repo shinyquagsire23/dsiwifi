@@ -49,6 +49,7 @@ int wifi_card_wlan_init();
 static u8* mbox_out_buffer;
 static u8* mbox_buffer;
 
+static int ip_data_out_buf_flip = 0;
 static u8* ip_data_out_buf = NULL;
 static u32 ip_data_out_buf_len = 0;
 
@@ -585,8 +586,8 @@ void data_handle_pkt(u8* pkt_data, u32 len)
     else
     {
         // TODO fragment it?
-        if (len > ip_data_out_buf_len)
-            len = ip_data_out_buf_len;
+        if (len > ip_data_out_buf_len / 2)
+            len = ip_data_out_buf_len / 2;
 
         //memcpy(ip_data_out_buf, pkt_data, len);
         
@@ -634,7 +635,8 @@ extern u16 wmi_idk;
 void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len)
 {
     int lock = enterCriticalSection();
-    memset(mbox_out_buffer, 0, round_up(len, 0x80));
+    //memset(mbox_out_buffer, 0, round_up(len, 0x80));
+    memset(mbox_out_buffer, 0, 0x8);
 
     mbox_out_buffer[0] = MBOXPKT_WMI;
     mbox_out_buffer[1] = ack_type;
@@ -662,6 +664,10 @@ void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len)
     leaveCriticalSection(lock);
 }
 
+
+static bool mbox_has_lookahead = false;
+static u32 mbox_lookahead = 0;
+
 // TODO: Move this to block transfers, and actually parse
 u16 wifi_card_mbox0_readpkt(void)
 {
@@ -682,7 +688,15 @@ u16 wifi_card_mbox0_readpkt(void)
         return 0;
     }
     
-    u32 header = wifi_card_read_func1_u32(F1_RX_LOOKAHEAD0); // read lookahead
+    u32 header = 0;
+    
+    if (mbox_has_lookahead) {
+        header = mbox_lookahead;
+        mbox_has_lookahead = false;
+    }
+    else {
+        header = wifi_card_read_func1_u32(F1_RX_LOOKAHEAD0); // read lookahead
+    }
     
     u8* read_buffer = mbox_buffer;
     
@@ -691,8 +705,10 @@ u16 wifi_card_mbox0_readpkt(void)
     u16 len = header >> 16;
     u16 full_len = round_up(len+6, 0x80);
     
-    if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 4 || pkt_type == 5))
-        read_buffer = ip_data_out_buf;
+    if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 4 || pkt_type == 5)) {
+        read_buffer = ip_data_out_buf + (ip_data_out_buf_flip * (ip_data_out_buf_len / 2));
+        ip_data_out_buf_flip = !ip_data_out_buf_flip;
+    }
     
     // On the off chance that a packet gets parsed incorrectly (full_len off-by-one, etc)
     // just discard in chunks of 4 and be loud about it.
@@ -755,6 +771,7 @@ u16 wifi_card_mbox0_readpkt(void)
     u16 len_pkt = len - ack_len;
     u16 pkt_cmd = *(u16*)&read_buffer[6];
     u8* pkt_data = &read_buffer[8];
+    u8* ack_data = &read_buffer[6 + len_pkt];
     
     if (pkt_type == MBOXPKT_HTC)
     {
@@ -774,6 +791,31 @@ u16 wifi_card_mbox0_readpkt(void)
         wifi_printlnf("wat %02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[8+0], read_buffer[8+1], read_buffer[8+2], read_buffer[8+3], read_buffer[8+4], read_buffer[8+5], read_buffer[8+6], read_buffer[8+7]);
     }
     
+    // We can avoid costly CMD52s by using the ack block's lookahead
+    mbox_has_lookahead = false;
+    u16 ack_idx = 0;
+    while (ack_idx < ack_len)
+    {
+        u8 type = ack_data[ack_idx++];
+        u8 len = ack_data[ack_idx++];
+
+        //if (type == 1 || type == 2)
+        //    wifi_printlnf("%x %x", type, len);
+        
+        // Lookahead item
+        if (type == 2 && len == 6 && !mbox_has_lookahead)
+        {
+            if (ack_data[ack_idx] == 0xAA && ack_data[ack_idx+5] == 0x55)
+            {
+                mbox_has_lookahead = true;
+                mbox_lookahead = getle32(&ack_data[ack_idx+1]);
+
+                //hexdump(&ack_data[ack_idx], 6);
+            }
+        }
+        ack_idx += len;
+    }
+    
     if (ack_present != MBOXPKT_RETACK)
     {
         //wifi_printlnf("%02x %02x %04x %04x", pkt_type, ack_present, len, actual_len);
@@ -782,6 +824,7 @@ u16 wifi_card_mbox0_readpkt(void)
     }
 
     leaveCriticalSection(lock);
+    
     return len;
 }
 
