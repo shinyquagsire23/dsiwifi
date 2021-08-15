@@ -6,7 +6,7 @@
 
 #include "wifi_debug.h"
 
-#include "dsiwifi_arm9.h"
+#include "dsiwifi9.h"
 
 #include <nds.h>
 #include <nds/interrupts.h>

@@ -23,16 +23,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ******************************************************************************/
-#include "dsiwifi_arm9.h"
+#include "dsiwifi9.h"
 
 #include <nds.h>
 #include "dsregs.h"
 
-#include "wifi_arm9.h"
+#include "dswifi9.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <nds/arm9/sassert.h>
 
 #include "wifi_host.h"
 
@@ -45,87 +46,89 @@ SOFTWARE.
 #endif
 
 WifiLogHandler DSiWifi_pfnLogHandler = NULL;
+WifiConnectHandler DSiWifi_pfnConnectHandler = NULL;
+WifiReconnectHandler DSiWifi_pfnReconnectHandler = NULL;
 
 u32 DSiWifi_TxBufferWordsAvailable() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 void DSiWifi_TxBufferWrite(s32 start, s32 len, u16 * data) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 int DSiWifi_RxRawReadPacket(s32 packetID, s32 readlength, u16 * data) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 u16 DSiWifi_RxReadOffset(s32 base, s32 offset) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 int DSiWifi_RawTxFrame(u16 datalen, u16 rate, u16 * data) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return 0;
 }
 
 
 void DSiWifi_RawSetPacketHandler(WifiPacketHandler wphfunc) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 void DSiWifi_SetSyncHandler(WifiSyncHandler wshfunc) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 void DSiWifi_DisableWifi() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 void DSiWifi_EnableWifi() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 void DSiWifi_SetPromiscuousMode(int enable) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 void DSiWifi_ScanMode() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 void DSiWifi_SetChannel(int channel) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 
 int DSiWifi_GetNumAP() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 int DSiWifi_GetAPData(int apnum, Wifi_AccessPoint * apdata) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return 0;
 }
 
 int DSiWifi_FindMatchingAP(int numaps, Wifi_AccessPoint * apdata, Wifi_AccessPoint * match_dest) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 int DSiWifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 * wepkey) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 void DSiWifi_AutoConnect() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 int DSiWifi_AssocStatus() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 
 int DSiWifi_DisconnectAP() {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
@@ -135,34 +138,34 @@ int DSiWifi_DisconnectAP() {
 
 
 int DSiWifi_TransmitFunction(sgIP_Hub_HWInterface * hw, sgIP_memblock * mb) {
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 int DSiWifi_Interface_Init(sgIP_Hub_HWInterface * hw) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return 0;
 }
 
 void DSiWifi_Timer(int num_ms) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 #endif
 
 unsigned long DSiWifi_Init(int initflags) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return 0;
 }
 
 int DSiWifi_CheckInit() {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 
 void DSiWifi_Update() {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 
@@ -171,12 +174,12 @@ void DSiWifi_Update() {
 #ifdef WIFI_USE_TCP_SGIP
 
 u32 DSiWifi_GetIP() {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
 
 struct in_addr  DSiWifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 
 	struct in_addr ip = { INADDR_NONE };
 	return ip;
@@ -184,23 +187,23 @@ struct in_addr  DSiWifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSn
 
 
 void DSiWifi_SetIP(u32 IPaddr, u32 gateway, u32 subnetmask, u32 dns1, u32 dns2) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 void DSiWifi_SetDHCP() {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 #endif
 
 
 int DSiWifi_GetData(int datatype, int bufferlen, unsigned char * buffer) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return -1;
 }
 
 u32 DSiWifi_GetStats(int statnum) {
-    wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
     return 0;
 }
 
@@ -211,7 +214,7 @@ u32 DSiWifi_GetStats(int statnum) {
 //---------------------------------------------------------------------------------
 void DSiWifi_Sync() {
 //---------------------------------------------------------------------------------
-	wifi_assert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 
@@ -227,3 +230,14 @@ void DSiWifi_SetLogHandler(WifiLogHandler handler)
 {
     DSiWifi_pfnLogHandler = handler;
 }
+
+void DSiWifi_SetConnectHandler(WifiConnectHandler handler)
+{
+    DSiWifi_pfnConnectHandler = handler;
+}
+
+void DSiWifi_SetReconnectHandler(WifiReconnectHandler handler)
+{
+    DSiWifi_pfnReconnectHandler = handler;
+}
+

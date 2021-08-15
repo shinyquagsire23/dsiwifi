@@ -6,9 +6,12 @@
 
 #include "rpc.h"
 
-#include "utils.h"
+#include <nds.h>
+#include <nds/ndstypes.h>
+#include <fat.h>
 
 #include "lwip/tcp.h"
+#include "utils.h"
 
 #define RPC_PORT (8336)
 
@@ -65,6 +68,10 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
         wifi_printlnf("RPC_CreateFile: `%s` %x", fpath, truncate);
         
         // CreateFile
+        FILE* f = fopen(fpath,"w");
+        if (f) {
+            fclose(f);
+        }
     }
     else if (cmd == RPC_CMD_WRITEFILE) {
         char* fpath = (char*)payload_read; payload_read += 0x40;
@@ -72,6 +79,12 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
         u32 len = *(u32*)payload_read; payload_read += sizeof(u32);
         
         // WriteFile
+        FILE* f = fopen(fpath,"r+");
+        if (f) {
+            fseek(f, offs, SEEK_SET);
+            fwrite(payload_read, len, 1, f);
+            fclose(f);
+        }
         
         u8* payload_write = rpc_recv_buf;
         strcpy((char*)payload_write, "SLTR"); payload_write += 4;
@@ -81,7 +94,9 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
         tcp_write(tpcb, rpc_recv_buf, payload_write_size, 1);
     }
     else if (cmd == RPC_CMD_REBOOT) {
-        
+        while (1) {
+	        fifoSendValue32(FIFO_USER_01, 1);
+	    }
     }
     else {
         u8* payload_write = rpc_recv_buf;

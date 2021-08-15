@@ -7,12 +7,25 @@
 #include <nds.h>
 #include <nds/arm9/exceptions.h>
 #include <stdio.h>
+#include <fat.h>
 
 #include "dsiwifi9.h"
+#include "rpc.h"
 
 void appwifi_log(const char* s)
 {
     iprintf("%s", s);
+}
+
+void appwifi_connect(void)
+{
+    rpc_init();
+}
+
+void appwifi_reconnect(void)
+{
+    rpc_deinit();
+    rpc_init();
 }
 
 //---------------------------------------------------------------------------------
@@ -26,7 +39,13 @@ int main(void) {
 	consoleDebugInit(DebugDevice_CONSOLE);
 
     DSiWifi_SetLogHandler(appwifi_log);
-    DSiWifi_InitDefault(true);    
+    DSiWifi_SetConnectHandler(appwifi_connect);
+    DSiWifi_SetReconnectHandler(appwifi_reconnect);
+    DSiWifi_InitDefault(true);
+    
+    if (!fatInitDefault()) {
+        iprintf("Failed to init SD card!\nRPC may not work fully...\n");
+    }  
 
 	while(1) {
 

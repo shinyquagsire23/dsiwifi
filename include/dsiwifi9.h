@@ -26,6 +26,8 @@ SOFTWARE.
 #ifndef DSIWIFI9_H
 #define DSIWIFI9_H
 
+#include <nds/ndstypes.h>
+
 #include "dswifi_version.h"
 #include "dswifi9.h"
 
@@ -35,6 +37,12 @@ extern "C" {
 #endif
 
 typedef void (*WifiLogHandler)(const char*);
+typedef void (*WifiConnectHandler)(void);
+typedef void (*WifiReconnectHandler)(void);
+
+extern WifiLogHandler DSiWifi_pfnLogHandler;
+extern WifiConnectHandler DSiWifi_pfnConnectHandler;
+extern WifiReconnectHandler DSiWifi_pfnReconnectHandler;
 
 //////////////////////////////////////////////////////////////////////////
 // Init/update/state management functions
@@ -189,6 +197,8 @@ extern void DSiWifi_SetSyncHandler(WifiSyncHandler sh);
 extern bool DSiWifi_InitDefault(bool useFirmwareSettings);
 
 extern void DSiWifi_SetLogHandler(WifiLogHandler handler);
+extern void DSiWifi_SetConnectHandler(WifiConnectHandler handler);
+extern void DSiWifi_SetReconnectHandler(WifiReconnectHandler handler);
 
 #ifdef __cplusplus
 };

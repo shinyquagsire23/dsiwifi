@@ -21,8 +21,8 @@
 #include "lwip/sys.h"
 #include "lwip/netbiosns.h"
 
+#include "dsiwifi9.h"
 #include "dsiwifi_cmds.h"
-#include "rpc.h"
 
 static u8 device_mac[6];
 static u8 ap_mac[6];
@@ -32,7 +32,6 @@ static bool host_bLwipInitted = false;
 static bool host_bNeedsDHCPRenew = false;
 
 static int ip_data_buf_idx = 0;
-static int ip_data_in_buf_idx = 0;
 
 #define DATA_BUF_LEN (0x600)
 static u8 __attribute((aligned(16))) ip_data_buf[0x600*2];
@@ -138,23 +137,6 @@ void data_send_to_lwip(void* data, u32 len)
 // FIFO
 //
 
-static void wifi_fifoSend32(u32 val)
-{
-    fifoSendValue32(FIFO_DSWIFI, val);
-}
-
-static u32 wifi_fifoGet32()
-{
-    while(!fifoCheckValue32(FIFO_DSWIFI));
-    return fifoGetValue32(FIFO_DSWIFI);
-}
-
-static void wifi_fifoGetData(int num_bytes, u8* data_array)
-{
-    while (!fifoCheckDatamsg(FIFO_DSWIFI));
-    fifoGetDatamsg(FIFO_DSWIFI, num_bytes, data_array);
-}
-
 static void wifi_host_get_mac()
 {
     Wifi_FifoMsg msg;
@@ -185,8 +167,8 @@ static void wifi_host_lwip_init()
     if (host_bLwipInitted) {
         if (host_bNeedsDHCPRenew)
         {
-            rpc_deinit();
-            rpc_init();
+            if (DSiWifi_pfnReconnectHandler)
+                DSiWifi_pfnReconnectHandler();
 
             dhcp_start(&ath_netif);
             host_bNeedsDHCPRenew = false;
@@ -217,7 +199,8 @@ static void wifi_host_lwip_init()
     
     dhcp_start(&ath_netif);
     
-    rpc_init();
+    if (DSiWifi_pfnConnectHandler)
+        DSiWifi_pfnConnectHandler();
     
     host_bLwipInitted = true;
     host_bNeedsDHCPRenew = false;
