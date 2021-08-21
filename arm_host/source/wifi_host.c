@@ -20,6 +20,7 @@
 #include "lwip/netif/ethernet.h"
 #include "lwip/sys.h"
 #include "lwip/netbiosns.h"
+#include "lwip/tcpip.h"
 
 #include "dsiwifi9.h"
 #include "dsiwifi_cmds.h"
@@ -109,10 +110,14 @@ err_t ath_link_output(struct netif *netif, struct pbuf *p)
 void ath_lwip_tick()
 {
     sys_check_timeouts();
+    tcpip_thread_poll_one();
 }
 
 void data_send_to_lwip(void* data, u32 len)
 {
+    if (len > DATA_BUF_LEN)
+        len = DATA_BUF_LEN;
+
     struct pbuf *p = pbuf_alloc(PBUF_IP, len, PBUF_POOL);
 
     // TODO error check?

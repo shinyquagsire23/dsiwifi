@@ -17,7 +17,7 @@ TOPDIR ?= $(CURDIR)/..
 # all directories are relative to this makefile
 #---------------------------------------------------------------------------------
 BUILD		?=	release
-SOURCES		:=	source ../common/source source/nds source/lwip source/lwip/ipv4 source/lwip/ipv6 source/lwip/netif source/lwip/netif/ppp
+SOURCES		:=	source ../common/source source/nds source/lwip source/lwip/ipv4 source/lwip/ipv6 source/lwip/netif source/lwip/netif/ppp source/lwip/api
 INCLUDES	:=	include ../common/source ../include ../include/lwip source/nds
 DATA		:=	data
 

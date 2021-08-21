@@ -668,7 +668,6 @@ void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len)
 static bool mbox_has_lookahead = false;
 static u32 mbox_lookahead = 0;
 
-// TODO: Move this to block transfers, and actually parse
 u16 wifi_card_mbox0_readpkt(void)
 {
     int lock = enterCriticalSection();
@@ -1052,17 +1051,9 @@ void wifi_card_process_pkts()
 
 void wifi_card_irq(void)
 {
-    wifi_card_write_func1_u32(F1_INT_STATUS_ENABLE, 0x0); // INT_STATUS_ENABLE (or 0x1?)
-    wifi_card_write_func0_u8(0x4, 0x0); // CCCR irq_enable, master+func1
-    
-    //wifi_printlnf("SDIO IRQ");
     wifi_card_process_pkts();
     
-    wmi_tick(); // TODO
-    //wifi_printlnf("SDIO IRQ end");
-    
-    wifi_card_write_func1_u32(F1_INT_STATUS_ENABLE, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
-    wifi_card_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
+    //wmi_tick(); // TODO
 }
 
 static void wifi_card_handleMsg(int len, void* user_data)

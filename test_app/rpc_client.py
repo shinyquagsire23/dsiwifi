@@ -101,7 +101,7 @@ def benchmark():
     ms_start = millis()
 
     to_send = 0x200000
-    bulk_size = 0x10000
+    bulk_size = 0x40000
 
     to_send = (to_send // bulk_size) * bulk_size
 

@@ -1,7 +1,7 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
-#define NO_SYS                      1
+#define NO_SYS                      0
 #define MEM_LIBC_MALLOC             1
 #define MEMP_MEM_MALLOC             1
 #define MEM_ALIGNMENT               4
@@ -31,8 +31,8 @@
 #define LWIP_NETIF_STATUS_CALLBACK  1
 #define LWIP_NETIF_LINK_CALLBACK    1
 #define LWIP_NETIF_HWADDRHINT       1
-#define LWIP_NETCONN                0
-#define LWIP_SOCKET                 0
+#define LWIP_NETCONN                1
+#define LWIP_SOCKET                 1
 #define LWIP_STATS_DISPLAY          1
 #define MEM_STATS                   0
 #define SYS_STATS                   0
@@ -65,6 +65,9 @@
 #define LWIP_WND_SCALE 1
 #define TCP_RCV_SCALE  7
 #define LWIP_NETIF_HOSTNAME 1
+#define LWIP_PROVIDE_ERRNO 1
+#define LWIP_NETCONN_FULLDUPLEX 0
+#define TCPIP_THREAD_TEST 1
 
 #define LWIP_DEBUG                  0
 
