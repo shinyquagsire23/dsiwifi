@@ -24,7 +24,7 @@ include/dswifi_version.h : Makefile
 	@echo >> $@
 	@echo '#define DSIWIFI_VERSION "'$(DSIWIFI_MAJOR).$(DSIWIFI_MINOR).$(DSIWIFI_REVISION)'"' >> $@
 	@echo >> $@
-	@echo "#endif // _dswifi_version_h_" >> $@
+	@echo "#endif // _dsiwifi_version_h_" >> $@
 
 #-------------------------------------------------------------------------------
 test_app: debug
@@ -54,17 +54,17 @@ clean:
 	@$(MAKE) -C arm_host clean
 	@$(MAKE) -C arm_iop clean
 	@$(MAKE) -C test_app clean
-	@$(RM) -r dswifi-src-*.tar.bz2 dswifi-*.tar.bz2 include/dswifi_version.h lib
+	@$(RM) -r dsiwifi-src-*.tar.bz2 dsiwifi-*.tar.bz2 include/dsiwifi_version.h lib
 
 #-------------------------------------------------------------------------------
 dist-src:
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm_iop/source arm_iop/Makefile arm_host/source arm_host/Makefile common include Makefile dswifi_license.txt
+	@tar --exclude=*CVS* --exclude=.svn -cjf dsiwifi-src-$(VERSION).tar.bz2 arm_iop/source arm_iop/Makefile arm_host/source arm_host/Makefile common include Makefile dsiwifi_license.txt dswifi_license.txt
 
 #-------------------------------------------------------------------------------
 dist-bin: all
 #-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-$(VERSION).tar.bz2 include lib dswifi_license.txt
+	@tar --exclude=*CVS* --exclude=.svn -cjf dsiwifi-$(VERSION).tar.bz2 include lib dsiwifi_license.txt dswifi_license.txt
 
 dist: dist-bin dist-src
 
@@ -72,5 +72,5 @@ dist: dist-bin dist-src
 install: dist-bin
 #-------------------------------------------------------------------------------
 	mkdir -p $(DESTDIR)$(DEVKITPRO)/libnds
-	bzip2 -cd dswifi-$(VERSION).tar.bz2 | tar -x -C $(DESTDIR)$(DEVKITPRO)/libnds
+	bzip2 -cd dsiwifi-$(VERSION).tar.bz2 | tar -x -C $(DESTDIR)$(DEVKITPRO)/libnds
 

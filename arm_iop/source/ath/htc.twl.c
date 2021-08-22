@@ -13,7 +13,7 @@
 #include "ath/wmi.h"
 #include "wifi_card.h"
 
-static u8 htc_buffer[0x200];
+static u8 htc_buffer[0x80];
 
 // WMI handshakes
 

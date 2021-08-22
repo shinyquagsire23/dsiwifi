@@ -9,10 +9,11 @@
 
 // ARM9->ARM7
 #define WIFI_IPCCMD_NOP             (0)
-#define WIFI_IPCCMD_INITBUFS        (1)
-#define WIFI_IPCCMD_SENDPKT         (2)
-#define WIFI_IPCCMD_GET_DEVICE_MAC  (3)
-#define WIFI_IPCCMD_GET_AP_MAC      (4)
+#define WIFI_IPCCMD_INIT_IOP        (1)
+#define WIFI_IPCCMD_INITBUFS        (2)
+#define WIFI_IPCCMD_SENDPKT         (3)
+#define WIFI_IPCCMD_GET_DEVICE_MAC  (4)
+#define WIFI_IPCCMD_GET_AP_MAC      (5)
 
 // ARM7->ARM9
 #define WIFI_IPCINT_NOP         (0)

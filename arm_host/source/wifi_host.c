@@ -165,6 +165,14 @@ static void wifi_host_init_bufs(void)
     fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
 }
 
+static void wifi_host_init_iop(void)
+{
+    Wifi_FifoMsg msg;
+    msg.cmd = WIFI_IPCCMD_INIT_IOP;
+    fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+}
+
+
 static void wifi_host_lwip_init()
 {
     
@@ -226,8 +234,6 @@ static void wifi_host_handleMsg(int len, void* user_data)
     u32 cmd = msg.cmd;
     if (cmd == WIFI_IPCINT_READY)
     {
-        wifi_printf("IOP ready\n");
-        
         wifi_host_get_mac();
         wifi_host_get_ap_mac();
         wifi_host_init_bufs();
@@ -271,6 +277,24 @@ static void wifi_host_handleMsg(int len, void* user_data)
 
 extern void sys_now_inc(u32 amt);
 
+u32 wifi_host_get_ipaddr(void)
+{
+    return ath_netif.ip_addr.addr;
+}
+
+int wifi_host_get_status(void)
+{
+    if (host_bLwipInitted)
+    {
+        if (wifi_host_get_ipaddr() != 0xFFFFFFFF)
+            return ASSOCSTATUS_ASSOCIATED;
+
+        return ASSOCSTATUS_ACQUIRINGDHCP;
+    }
+    
+    return ASSOCSTATUS_SEARCHING;
+}
+
 void wifi_host_tick_display()
 {
     static int counter = 100000;
@@ -282,7 +306,7 @@ void wifi_host_tick_display()
         
         memcpy(addr_bytes, &addr, 4);
         
-        wifi_printf("\x1b[s\x1b[0;0HCur IP: \x1b[36m%u.%u.%u.%u        \x1b[u\x1b[37m", addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]);
+        //wifi_printf("\x1b[s\x1b[0;0HCur IP: \x1b[36m%u.%u.%u.%u        \x1b[u\x1b[37m", addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]);
         //font_draw_string(0,0, WHITE, tmp);
         
         //data_send_ip(broadcast_all, device_mac, NULL, 0);
@@ -318,4 +342,7 @@ void wifi_host_init()
     
     // Enable FIFO handlers
 	fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_host_handleMsg, 0);
+	
+	wifi_host_init_iop();
+	wifi_printf("did init iop\n");
 }

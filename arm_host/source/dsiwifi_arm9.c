@@ -117,13 +117,15 @@ int DSiWifi_ConnectAP(Wifi_AccessPoint * apdata, int wepmode, int wepkeyid, u8 *
 	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 	return 0;
 }
+
 void DSiWifi_AutoConnect() {
-	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	//sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
 int DSiWifi_AssocStatus() {
-	sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
-	return 0;
+    
+	//sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
+	return wifi_host_get_status();
 }
 
 
@@ -168,22 +170,21 @@ void DSiWifi_Update() {
     sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
 }
 
+u32 DSiWifi_GetIP() {
+	return wifi_host_get_ipaddr();
+}
+
+struct in_addr  DSiWifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2) {
+    //sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
+
+	struct in_addr ip = { wifi_host_get_ipaddr() };
+	return ip;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Ip addr get/set functions
 #ifdef WIFI_USE_TCP_SGIP
-
-u32 DSiWifi_GetIP() {
-    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
-	return 0;
-}
-
-struct in_addr  DSiWifi_GetIPInfo(struct in_addr * pGateway,struct in_addr * pSnmask,struct in_addr * pDns1,struct in_addr * pDns2) {
-    sassert(false, "%s\nis currently unimplemented", __FUNCTION__);
-
-	struct in_addr ip = { INADDR_NONE };
-	return ip;
-}
 
 
 void DSiWifi_SetIP(u32 IPaddr, u32 gateway, u32 subnetmask, u32 dns1, u32 dns2) {

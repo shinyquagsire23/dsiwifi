@@ -14,9 +14,12 @@
 #include "dsiwifi_cmds.h"
 
 char _print_buffer[0x7C] = {0};
+extern int wifi_printf_allowed;
 
 void wifi_printf(char* fmt, ...)
 {
+    if (!wifi_printf_allowed) return;
+    
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
@@ -29,6 +32,8 @@ void wifi_printf(char* fmt, ...)
 
 void wifi_printlnf(char* fmt, ...)
 {
+    if (!wifi_printf_allowed) return;
+    
     int lock = enterCriticalSection();
     va_list args;
     va_start(args, fmt);
@@ -40,16 +45,8 @@ void wifi_printlnf(char* fmt, ...)
     leaveCriticalSection(lock);
 }
 
-void wifi_ipcSendString(char* ptr) {
-    int lock = enterCriticalSection();
-    fifoSendDatamsg(FIFO_USER_02, strlen(ptr)+1, (u8*)ptr);
-    fifoSendValue32(FIFO_USER_03, 1);
-    //while (!fifoCheckValue32(FIFO_USER_03));
-    //while (fifoGetValue32(FIFO_USER_03) != 0);
-    leaveCriticalSection(lock);
-}
-
 void wifi_ipcSendStringAlt(char* ptr) {
+    if (!wifi_printf_allowed) return;
 
     Wifi_FifoMsgExt msg;
     msg.cmd = WIFI_IPCINT_DBGLOG;

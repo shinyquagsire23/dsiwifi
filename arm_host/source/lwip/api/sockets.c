@@ -58,9 +58,7 @@
 #include "lwip/inet_chksum.h"
 #endif
 
-#if LWIP_COMPAT_SOCKETS == 2 && LWIP_POSIX_SOCKETS_IO_NAMES
 #include <stdarg.h>
-#endif
 
 #include <string.h>
 
@@ -4201,5 +4199,158 @@ lwip_socket_drop_registered_mld6_memberships(int s)
   done_socket(sock);
 }
 #endif /* LWIP_IPV6_MLD */
+
+
+#if LWIP_COMPAT_SOCKETS
+#if LWIP_COMPAT_SOCKETS != 2
+
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+{
+    return lwip_accept(s, addr, addrlen);
+}
+
+int bind(int s, const struct sockaddr *name, socklen_t namelen)
+{
+    return lwip_bind(s, name, namelen);
+}
+
+int shutdown(int s, int how)
+{
+    return lwip_shutdown(s, how);
+}
+
+int getpeername (int s, struct sockaddr *name, socklen_t *namelen)
+{
+    return lwip_getpeername(s, name, namelen);
+}
+
+int getsockname (int s, struct sockaddr *name, socklen_t *namelen)
+{
+    return lwip_getsockname(s, name, namelen);
+}
+
+int getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen)
+{
+    return lwip_getsockopt(s, level, optname, optval, optlen);
+}
+
+int setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen)
+{
+    return lwip_setsockopt(s, level, optname, optval, optlen);
+}
+
+int close(int s)
+{
+    return lwip_close(s);
+}
+
+int connect(int s, const struct sockaddr *name, socklen_t namelen)
+{
+    return lwip_connect(s, name, namelen);
+}
+
+int listen(int s, int backlog)
+{
+    return lwip_listen(s, backlog);
+}
+
+ssize_t recv(int s, void *mem, size_t len, int flags)
+{
+    return lwip_recv(s, mem, len, flags);
+}
+
+ssize_t read(int s, void *mem, size_t len)
+{
+    return lwip_read(s, mem, len);
+}
+
+ssize_t readv(int s, const struct iovec *iov, int iovcnt)
+{
+    return lwip_readv(s, iov, iovcnt);
+}
+
+ssize_t recvfrom(int s, void *mem, size_t len, int flags,
+      struct sockaddr *from, socklen_t *fromlen)
+{
+    return lwip_recvfrom(s, mem, len, flags, from, fromlen);
+}
+
+ssize_t recvmsg(int s, struct msghdr *message, int flags)
+{
+    return lwip_recvmsg(s, message, flags);
+}
+
+ssize_t send(int s, const void *dataptr, size_t size, int flags)
+{
+    return lwip_send(s, dataptr, size, flags);
+}
+
+ssize_t sendmsg(int s, const struct msghdr *message, int flags)
+{
+    return lwip_sendmsg(s, message, flags);
+}
+
+ssize_t sendto(int s, const void *dataptr, size_t size, int flags,
+    const struct sockaddr *to, socklen_t tolen)
+{
+    return lwip_sendto(s, dataptr, size, flags, to, tolen);
+}
+
+int socket(int domain, int type, int protocol)
+{
+    return lwip_socket(domain, type, protocol);
+}
+
+ssize_t write(int s, const void *dataptr, size_t size)
+{
+    return lwip_write(s, dataptr, size);
+}
+
+ssize_t writev(int s, const struct iovec *iov, int iovcnt)
+{
+    return lwip_writev(s, iov, iovcnt);
+}
+
+#if LWIP_SOCKET_SELECT
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
+                struct timeval *timeout)
+{
+    return lwip_select(maxfdp1, readset, writeset, exceptset, timeout);
+}
+#endif
+#if LWIP_SOCKET_POLL
+int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+    return lwip_poll(fds, nfds, timeout);
+}
+#endif
+int ioctl(int s, long cmd, void *argp)
+{
+    return lwip_ioctl(s, cmd, argp);
+}
+
+int fcntl(int s, int cmd, ...)
+{
+  va_list ap;
+  int val;
+
+  va_start(ap, cmd);
+  val = va_arg(ap, int);
+  va_end(ap);
+  return lwip_fcntl(s, cmd, val);
+}
+
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
+{
+    return lwip_inet_ntop(af, src, dst, size);
+}
+
+int inet_pton(int af, const char *src, void *dst)
+{
+    return lwip_inet_pton(af, src, dst);
+}
+
+#endif /* LWIP_COMPAT_SOCKETS != 2 */
+#endif /* LWIP_COMPAT_SOCKETS */
 
 #endif /* LWIP_SOCKET */

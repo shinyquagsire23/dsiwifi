@@ -45,6 +45,28 @@
 
 #if LWIP_SOCKET_EXTERNAL_HEADERS
 #include LWIP_SOCKET_EXTERNAL_HEADER_SOCKETS_H
+typedef u32_t socklen_t;
+
+/* poll-related defines and types */
+#define POLLIN     0x1
+#define POLLOUT    0x2
+#define POLLERR    0x4
+#define POLLNVAL   0x8
+/* Below values are unimplemented */
+#define POLLRDNORM 0x10
+#define POLLRDBAND 0x20
+#define POLLPRI    0x40
+#define POLLWRNORM 0x80
+#define POLLWRBAND 0x100
+#define POLLHUP    0x200
+typedef unsigned int nfds_t;
+struct pollfd
+{
+  int fd;
+  short events;
+  short revents;
+};
+
 #else /* LWIP_SOCKET_EXTERNAL_HEADERS */
 
 #include "lwip/ip_addr.h"
@@ -629,6 +651,43 @@ int lwip_inet_pton(int af, const char *src, void *dst);
 
 #if LWIP_COMPAT_SOCKETS
 #if LWIP_COMPAT_SOCKETS != 2
+
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+int bind(int s, const struct sockaddr *name, socklen_t namelen);
+int shutdown(int s, int how);
+int getpeername (int s, struct sockaddr *name, socklen_t *namelen);
+int getsockname (int s, struct sockaddr *name, socklen_t *namelen);
+int getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen);
+ int close(int s);
+int connect(int s, const struct sockaddr *name, socklen_t namelen);
+int listen(int s, int backlog);
+ssize_t recv(int s, void *mem, size_t len, int flags);
+ssize_t read(int s, void *mem, size_t len);
+ssize_t readv(int s, const struct iovec *iov, int iovcnt);
+ssize_t recvfrom(int s, void *mem, size_t len, int flags,
+      struct sockaddr *from, socklen_t *fromlen);
+ssize_t recvmsg(int s, struct msghdr *message, int flags);
+ssize_t send(int s, const void *dataptr, size_t size, int flags);
+ssize_t sendmsg(int s, const struct msghdr *message, int flags);
+ssize_t sendto(int s, const void *dataptr, size_t size, int flags,
+    const struct sockaddr *to, socklen_t tolen);
+int socket(int domain, int type, int protocol);
+ssize_t write(int s, const void *dataptr, size_t size);
+ssize_t writev(int s, const struct iovec *iov, int iovcnt);
+#if LWIP_SOCKET_SELECT
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
+                struct timeval *timeout);
+#endif
+#if LWIP_SOCKET_POLL
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+#endif
+int ioctl(int s, long cmd, void *argp);
+int fcntl(int s, int cmd, ...);
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+int inet_pton(int af, const char *src, void *dst);
+
+#if 0
 /** @ingroup socket */
 #define accept(s,addr,addrlen)                    lwip_accept(s,addr,addrlen)
 /** @ingroup socket */
@@ -694,6 +753,9 @@ int lwip_inet_pton(int af, const char *src, void *dst);
 /** @ingroup socket */
 #define ioctl(s,cmd,argp)                         lwip_ioctl(s,cmd,argp)
 #endif /* LWIP_POSIX_SOCKETS_IO_NAMES */
+#endif
+
+
 #endif /* LWIP_COMPAT_SOCKETS != 2 */
 
 #endif /* LWIP_COMPAT_SOCKETS */

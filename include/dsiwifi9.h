@@ -31,10 +31,11 @@ SOFTWARE.
 #include "dswifi_version.h"
 #include "dswifi9.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//#include "lwip/inet.h"
 
 typedef void (*WifiLogHandler)(const char*);
 typedef void (*WifiConnectHandler)(void);

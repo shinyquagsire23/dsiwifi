@@ -41,6 +41,12 @@
 #define ETHARP_TRUST_IP_MAC         0
 #define ETH_PAD_SIZE                2
 #define LWIP_CHKSUM_ALGORITHM       2
+#define SO_REUSE 1
+#define LWIP_SO_RCVBUF 1
+#define LWIP_SO_RCVTIMEO 1
+#define LWIP_SO_SNDTIMEO 1
+#define SO_REUSE_RXTOALL 1
+#define LWIP_SO_LINGER 1
 
 #define SYS_LIGHTWEIGHT_PROT        0
 
@@ -65,9 +71,10 @@
 #define LWIP_WND_SCALE 1
 #define TCP_RCV_SCALE  7
 #define LWIP_NETIF_HOSTNAME 1
-#define LWIP_PROVIDE_ERRNO 1
+#define LWIP_PROVIDE_ERRNO 0
 #define LWIP_NETCONN_FULLDUPLEX 0
 #define TCPIP_THREAD_TEST 1
+#define LWIP_ERRNO_STDINCLUDE 1
 
 #define LWIP_DEBUG                  0
 

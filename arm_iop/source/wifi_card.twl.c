@@ -92,6 +92,8 @@ static u32 __attribute((aligned(16))) wifi_card_alignedbuf_small[4];
 
 nvram_cfg wifi_card_nvram_configs[3];
 
+int wifi_printf_allowed = 0;
+
 // CMD52 - IO_RW_DIRECT (read/write single register).
 static const wifi_sdio_command cmd52 = {
     .cmd = 52,
@@ -984,25 +986,85 @@ void wifi_card_bmi_lz_upload(u32 addr, const u8* data, u32 len)
     }
 }
 
+static void wifi_card_handleMsg(int len, void* user_data)
+{
+    Wifi_FifoMsg msg;
+    
+    if (len < 4)
+    {
+        //wifi_printf("Bad msg len %x\n", len);
+        return;
+    }
+    
+    fifoGetDatamsg(FIFO_DSWIFI, len, (u8*)&msg);
+    
+    u32 cmd = msg.cmd;
+    if (cmd == WIFI_IPCCMD_INIT_IOP)
+    {
+        wifi_printf_allowed = 1;
+        //wifi_printf("iop val %x\n", cmd);
+        wifi_card_device_init(wifi_card_dev_wlan);
+    }
+    else if (cmd == WIFI_IPCCMD_INITBUFS)
+    {
+        void* data = msg.pkt_data;
+        u32 len = msg.pkt_len;
+        
+        ip_data_out_buf = data;
+        ip_data_out_buf_len = len;
+    }
+    else if (cmd == WIFI_IPCCMD_SENDPKT)
+    {
+        void* data = msg.pkt_data;
+        u32 len = msg.pkt_len;
+        
+        data_send_pkt_idk(data, len);
+    }
+    else if (cmd == WIFI_IPCCMD_GET_DEVICE_MAC)
+    {
+        Wifi_FifoMsg msg;
+        
+        // Get MAC
+        u8* mac = wmi_get_mac();
+        
+        // Craft and send msg
+        msg.cmd = WIFI_IPCINT_DEVICE_MAC;
+        memcpy(msg.mac_addr, mac, 6);
+        fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+    }
+    else if (cmd == WIFI_IPCCMD_GET_AP_MAC)
+    {
+        Wifi_FifoMsg msg;
+        
+        // Get MAC
+        u8* mac = wmi_get_ap_mac();
+        
+        // Craft and send msg
+        msg.cmd = WIFI_IPCINT_AP_MAC;
+        memcpy(msg.mac_addr, mac, 6);
+        fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+    }
+    else
+    {
+        wifi_printf("iop val %x\n", cmd);
+    }
+}
+
 // SDIO main functions
 void wifi_card_init(void)
 {
     mbox_buffer = memalign(16, MBOX_TMPBUF_SIZE);
     mbox_out_buffer = memalign(16, MBOX_TMPBUF_SIZE);
-    
-    if (!mbox_out_buffer || !mbox_buffer)
-    {
-        wifi_printf("bad mbox alloc %x %x\n", mbox_buffer, mbox_out_buffer);
-        while (1);
-    }
-    
+
     // Read NVRAM settings
     readFirmware(NVRAM_ADDR_WIFICFG, (void*)wifi_card_nvram_configs, sizeof(wifi_card_nvram_configs));
-    
+
     wifi_ndma_init();
     wifi_sdio_controller_init(REG_SDIO_BASE);
 
-    wifi_card_device_init(wifi_card_dev_wlan);
+    fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_card_handleMsg, 0);
+    //wifi_card_device_init(wifi_card_dev_wlan);
+
 }
 
 void wifi_card_send_command(wifi_sdio_command cmd, u32 args)
@@ -1056,64 +1118,6 @@ void wifi_card_irq(void)
     //wmi_tick(); // TODO
 }
 
-static void wifi_card_handleMsg(int len, void* user_data)
-{
-    Wifi_FifoMsg msg;
-    
-    if (len < 4)
-    {
-        wifi_printf("Bad msg len %x\n", len);
-        return;
-    }
-    
-    fifoGetDatamsg(FIFO_DSWIFI, len, (u8*)&msg);
-    
-    u32 cmd = msg.cmd;
-    if (cmd == WIFI_IPCCMD_INITBUFS)
-    {
-        void* data = msg.pkt_data;
-        u32 len = msg.pkt_len;
-        
-        ip_data_out_buf = data;
-        ip_data_out_buf_len = len;
-    }
-    else if (cmd == WIFI_IPCCMD_SENDPKT)
-    {
-        void* data = msg.pkt_data;
-        u32 len = msg.pkt_len;
-        
-        data_send_pkt_idk(data, len);
-    }
-    else if (cmd == WIFI_IPCCMD_GET_DEVICE_MAC)
-    {
-        Wifi_FifoMsg msg;
-        
-        // Get MAC
-        u8* mac = wmi_get_mac();
-        
-        // Craft and send msg
-        msg.cmd = WIFI_IPCINT_DEVICE_MAC;
-        memcpy(msg.mac_addr, mac, 6);
-        fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
-    }
-    else if (cmd == WIFI_IPCCMD_GET_AP_MAC)
-    {
-        Wifi_FifoMsg msg;
-        
-        // Get MAC
-        u8* mac = wmi_get_ap_mac();
-        
-        // Craft and send msg
-        msg.cmd = WIFI_IPCINT_AP_MAC;
-        memcpy(msg.mac_addr, mac, 6);
-        fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
-    }
-    else
-    {
-        wifi_printf("iop val %x\n", cmd);
-    }
-}
-
 void wifi_card_send_ready()
 {
     Wifi_FifoMsg msg;
@@ -1155,6 +1159,12 @@ int wifi_card_wlan_init(wifi_card_ctx* ctx)
 {
     if(!ctx) return -1;
     if(ctx->device != wifi_card_dev_wlan) return -1;
+    
+    if (!mbox_out_buffer || !mbox_buffer)
+    {
+        wifi_printf("bad mbox alloc %x %x\n", mbox_buffer, mbox_out_buffer);
+        while (1);
+    }
     
     device_curctx = ctx;
 
@@ -1475,10 +1485,6 @@ skip_opcond:
     irqEnableAUX(IRQ_WIFI_SDIO_CARDIRQ);
     wifi_sdio_enable_cardirq(REG_SDIO_BASE, true);
     
-    // Enable FIFO handlers
-    //fifoSetValue32Handler(FIFO_DSWIFI, wifi_card_handleFifo32, 0);
-    //fifoSetAddressHandler(FIFO_DSWIFI, wifi_card_handleAddress, 0);
-    fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_card_handleMsg, 0);
     
     wifi_card_write_func1_u32(F1_INT_STATUS_ENABLE, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
     wifi_card_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
