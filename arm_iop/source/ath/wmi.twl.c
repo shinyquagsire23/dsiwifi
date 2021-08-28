@@ -524,7 +524,7 @@ void wmi_set_tx_power()
 {
     struct {
         u8 dbm;
-    } wmi_params = { 22 };
+    } wmi_params = { 256 };
     
     wmi_send_pkt(WMI_SET_TX_PWR_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
 }
@@ -606,13 +606,13 @@ void wmi_scantick()
     //wifi_printf("asdf2 %x %x\r", test_tick++, device_num_channels);
     if (!device_num_channels) return;
 
-    if (ap_found && !sent_connect && num_rounds_scanned > 2)
+    if (ap_found && !sent_connect && num_rounds_scanned >= 5-1)
     {
         wmi_connect();
         sent_connect = true;
     }
     
-    if (ap_found && num_rounds_scanned > 2) return;
+    if (ap_found && num_rounds_scanned >= 5-1) return;
     
     if (!scanning)
     {
@@ -623,8 +623,12 @@ void wmi_scantick()
         device_cur_channel_idx++;
         if (device_cur_channel_idx > device_num_channels) {
             device_cur_channel_idx = 0;
-            ap_snr = 0;
             num_rounds_scanned++;
+        }
+        
+        if (num_rounds_scanned && num_rounds_scanned % 5 == 0)
+        {
+            ap_snr = 0;
         }
         
         if (!mhz) return;

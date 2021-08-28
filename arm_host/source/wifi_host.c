@@ -34,8 +34,9 @@ static bool host_bNeedsDHCPRenew = false;
 
 static int ip_data_buf_idx = 0;
 
+#define DATA_BUF_RINGS (5)
 #define DATA_BUF_LEN (0x600)
-static u8 __attribute((aligned(16))) ip_data_buf[0x600*2];
+static u8 __attribute((aligned(16))) ip_data_buf[0x600*DATA_BUF_RINGS];
 static u8 __attribute((aligned(16))) ip_data_in_buf[0x600*2];
 
 // LWIP state
@@ -67,7 +68,7 @@ void data_send_link(void* ip_data, u32 ip_data_len)
         ip_data_len = DATA_BUF_LEN;
 
     void* dst = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
-    ip_data_buf_idx = !ip_data_buf_idx;
+    ip_data_buf_idx = (ip_data_buf_idx + 1) % DATA_BUF_RINGS;
 
     memcpy(dst, ip_data, ip_data_len);
     

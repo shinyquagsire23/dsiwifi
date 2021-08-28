@@ -419,4 +419,30 @@ lwip_getaddrinfo(const char *nodename, const char *servname,
   return 0;
 }
 
+#if LWIP_COMPAT_SOCKETS
+struct hostent *gethostbyname(const char *name)
+{
+    return lwip_gethostbyname(name);
+}
+
+int gethostbyname_r(const char *name, struct hostent *ret, char *buf,
+                size_t buflen, struct hostent **result, int *h_errnop)
+{
+    return lwip_gethostbyname_r(name, ret, buf, buflen, result, h_errnop);
+}
+
+void freeaddrinfo(struct addrinfo *ai)
+{
+    return lwip_freeaddrinfo(ai);
+}
+
+int getaddrinfo(const char *nodename,
+       const char *servname,
+       const struct addrinfo *hints,
+       struct addrinfo **res)
+{
+    return lwip_getaddrinfo(nodename, servname, hints, res);
+}
+#endif
+
 #endif /* LWIP_DNS && LWIP_SOCKET */
