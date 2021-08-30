@@ -51,7 +51,7 @@ static u8* mbox_buffer;
 
 static int ip_data_out_buf_flip = 0;
 static u8* ip_data_out_buf = NULL;
-static u32 ip_data_out_buf_len = 0;
+static u32 ip_data_out_buf_totlen = 0;
 
 #define ID_AR6002 (0x02000271)
 #define ID_AR601x (0x02010271)
@@ -65,6 +65,7 @@ static u32 ip_data_out_buf_len = 0;
 
 #define SDIO_TICK_INTERVAL_MS (1)
 #define MBOX_TMPBUF_SIZE (0x600)
+#define DATA_BUF_LEN (0x600)
 
 // Uncomment to send all data bytewise, helpful for debugging.
 //#define SDIO_NO_BLOCKRW
@@ -588,8 +589,8 @@ void data_handle_pkt(u8* pkt_data, u32 len)
     else
     {
         // TODO fragment it?
-        if (len > ip_data_out_buf_len / 2)
-            len = ip_data_out_buf_len / 2;
+        if (len > DATA_BUF_LEN - 6)
+            len = DATA_BUF_LEN - 6;
 
         //memcpy(ip_data_out_buf, pkt_data, len);
         
@@ -706,8 +707,8 @@ u16 wifi_card_mbox0_readpkt(void)
     u16 len = header >> 16;
     u16 full_len = round_up(len+6, 0x80);
     
-    if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 4 || pkt_type == 5)) {
-        read_buffer = ip_data_out_buf + (ip_data_out_buf_flip * (ip_data_out_buf_len / 2));
+    if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 3 || pkt_type == 4 || pkt_type == 5)) {
+        read_buffer = ip_data_out_buf + (ip_data_out_buf_flip * DATA_BUF_LEN);
         ip_data_out_buf_flip = !ip_data_out_buf_flip;
     }
     
@@ -782,7 +783,7 @@ u16 wifi_card_mbox0_readpkt(void)
     {
         wmi_handle_pkt(pkt_cmd, pkt_data, len_pkt - 2, ack_len);
     }
-    else if (pkt_type == 2 || pkt_type == 4 || pkt_type == 5) // one of my routers sends 0x04 for some reason
+    else if (pkt_type == 2 || pkt_type == 3 || pkt_type == 4 || pkt_type == 5) // one of my routers sends 0x04 for some reason
     {
         data_handle_pkt(pkt_data - 2, len_pkt);
     }
@@ -1011,7 +1012,7 @@ static void wifi_card_handleMsg(int len, void* user_data)
         u32 len = msg.pkt_len;
         
         ip_data_out_buf = data;
-        ip_data_out_buf_len = len;
+        ip_data_out_buf_totlen = len;
     }
     else if (cmd == WIFI_IPCCMD_SENDPKT)
     {
@@ -1019,6 +1020,8 @@ static void wifi_card_handleMsg(int len, void* user_data)
         u32 len = msg.pkt_len;
         
         data_send_pkt_idk(data, len);
+        
+        *(vu32*)data = 0xF00FF00F; // mark packet processed
     }
     else if (cmd == WIFI_IPCCMD_GET_DEVICE_MAC)
     {
@@ -1142,12 +1145,6 @@ void wifi_card_tick(void)
     //wifi_card_process_pkts();
     
     wmi_tick();
-    
-    if (wmi_handshake_done())
-    {
-        //wifi_printlnf("tick hs");
-        wmi_tick_display();
-    }
 
     timerStop(3);
     timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000 / SDIO_TICK_INTERVAL_MS), wifi_card_tick);

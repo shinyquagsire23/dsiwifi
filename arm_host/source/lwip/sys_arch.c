@@ -37,6 +37,8 @@ sys_now(void)
 
 #define MBOX_VAL_EMPTY (0x12345678)
 #define MBOX_VAL_INVALID (0x12345679)
+#define SEM_SIGNAL (0x12345678)
+#define MTX_LOCKED (0x12345678)
 
 err_t __attribute__((weak)) sys_mutex_new(sys_mutex_t *mutex)
 {
@@ -46,14 +48,37 @@ err_t __attribute__((weak)) sys_mutex_new(sys_mutex_t *mutex)
 
 void __attribute__((weak)) sys_mutex_lock(sys_mutex_t *mutex)
 {
+    if (!mutex) return;
+    
+    if (!*mutex)
+        *mutex = 0xFFFFFFFF;
+
+    //wifi_printlnf("lock %p %x %x", mutex, *mutex, getCPSR() & 0x1F);
+
+    if ((getCPSR() & 0x1F) == 0x1F)
+    {
+        while (1)
+        {
+            if (*mutex == 0xFFFFFFFF) break;
+        }
+    }
+
+    *mutex = MTX_LOCKED;
 }
 
 void __attribute__((weak)) sys_mutex_unlock(sys_mutex_t *mutex)
 {
+    if (!mutex) return;
+    
+    //wifi_printlnf("unlock %p %x %x", mutex, *mutex, getCPSR() & 0x1F);
+    
+    //if (*mutex == MTX_LOCKED)
+    *mutex = 0xFFFFFFFF;
 }
 
 void __attribute__((weak)) sys_mutex_free(sys_mutex_t *mutex)
 {
+    if (!mutex) return;
     *mutex = 0;
 }
 
@@ -64,7 +89,8 @@ int __attribute__((weak)) sys_mutex_valid(sys_mutex_t *mutex)
 
 void __attribute__((weak)) sys_mutex_set_invalid(sys_mutex_t *mutex)
 {
-    
+    if (!mutex) return;
+    *mutex = 0;
 }
 
 err_t __attribute__((weak)) sys_sem_new(sys_sem_t *sem, u8_t count)
@@ -75,11 +101,14 @@ err_t __attribute__((weak)) sys_sem_new(sys_sem_t *sem, u8_t count)
 
 void __attribute__((weak)) sys_sem_signal(sys_sem_t *sem)
 {
-    
+    while (*sem != 0xFFFFFFFF);
+    *sem = SEM_SIGNAL;
 }
 
 u32_t __attribute__((weak)) sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 {
+    while (*sem != SEM_SIGNAL);
+    *sem = 0xFFFFFFFF;
     return 1;
 }
 
@@ -95,6 +124,7 @@ int __attribute__((weak)) sys_sem_valid(sys_sem_t *sem)
 
 void __attribute__((weak)) sys_sem_set_invalid(sys_sem_t *sem)
 {
+    *sem = 0;
 }
 
 void __attribute__((weak)) sys_msleep(u32_t ms)
@@ -102,7 +132,7 @@ void __attribute__((weak)) sys_msleep(u32_t ms)
     vu32 target = val + ms;
     
     // edge case, overflow
-    if (val < target) return;
+    if (val > target) return;
     
     while (val < target) ;
 }
@@ -124,11 +154,12 @@ void __attribute__((weak)) sys_mbox_post(sys_mbox_t *mbox, void *msg)
         //wifi_printlnf("wait post");
     }
     
-    if (*mbox == MBOX_VAL_INVALID || *mbox == MBOX_VAL_EMPTY)
+    /*if (*mbox == MBOX_VAL_INVALID)
     {
+        wifi_printlnf("invalid invalid");
         *mbox = 0xAAAAAAAA;
         return;
-    }
+    }*/
     
     *mbox = (uint32_t)msg;
 }
@@ -139,17 +170,21 @@ err_t __attribute__((weak)) sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
     
     if (*mbox != MBOX_VAL_EMPTY)
     {
+        //wifi_printlnf("invalid invalid 2--");
+        //*mbox = 0xAAAAAAAA;
         return ERR_MEM;
     }
     
     //wifi_printlnf("put %x", msg);
-    *mbox = (uint32_t)msg;
-    
-    if (*mbox == MBOX_VAL_INVALID || *mbox == MBOX_VAL_EMPTY)
+
+    /*if (*mbox == MBOX_VAL_INVALID)
     {
+        wifi_printlnf("invalid invalid 2");
         *mbox = 0xAAAAAAAA;
         return ERR_MEM;
-    }
+    }*/
+    
+    *mbox = (uint32_t)msg;
     
     return ERR_OK;
 }
@@ -162,14 +197,15 @@ err_t __attribute__((weak)) sys_mbox_trypost_fromisr(sys_mbox_t *mbox, void *msg
     {
         return ERR_MEM;
     }
-
-    *mbox = (uint32_t)msg;
     
-    if (*mbox == MBOX_VAL_INVALID || *mbox == MBOX_VAL_EMPTY)
+    /*if (*mbox == MBOX_VAL_INVALID)
     {
+        wifi_printlnf("invalid invalid 3");
         *mbox = 0xAAAAAAAA;
         return ERR_MEM;
-    }
+    }*/
+    
+    *mbox = (uint32_t)msg;
     
     return ERR_OK;
 }

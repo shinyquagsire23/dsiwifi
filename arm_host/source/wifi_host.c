@@ -34,10 +34,11 @@ static bool host_bNeedsDHCPRenew = false;
 
 static int ip_data_buf_idx = 0;
 
-#define DATA_BUF_RINGS (5)
+#define DATA_BUF_RINGS (4)
+#define DATA_IN_BUF_RINGS (2)
 #define DATA_BUF_LEN (0x600)
-static u8 __attribute((aligned(16))) ip_data_buf[0x600*DATA_BUF_RINGS];
-static u8 __attribute((aligned(16))) ip_data_in_buf[0x600*2];
+static u8 __attribute((aligned(16))) ip_data_buf[DATA_BUF_LEN*DATA_BUF_RINGS];
+static u8 __attribute((aligned(16))) ip_data_in_buf[DATA_BUF_LEN*DATA_IN_BUF_RINGS];
 
 // LWIP state
 static struct netif ath_netif = {0};
@@ -77,13 +78,15 @@ void data_send_link(void* ip_data, u32 ip_data_len)
     msg.pkt_data = dst;
     msg.pkt_len = ip_data_len;
     fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+    
+    //while (*(vu32*)dst != 0xF00FF00F);
 }
 
 err_t ath_init_fn(struct netif *netif)
 {
     ath_netif.output = etharp_output;
     ath_netif.linkoutput = ath_link_output;
-    ath_netif.mtu = 0x580;
+    ath_netif.mtu = 0x570;
         
     ath_netif.name[0] = 'w';
     ath_netif.name[1] = 'l';
@@ -123,12 +126,19 @@ void data_send_to_lwip(void* data, u32 len)
 
     // TODO error check?
     
-    if (!p) return;
+    if (!p) {
+        *(vu32*)(data - 6) = 0xF00FF00F;
+        DC_FlushRange(data - 6, 4);
+        return;
+    }
     
     if (len > p->len)
         len = p->len;
     
+    DC_InvalidateRange(data, len);
     memcpy(p->payload, data, len);
+    *(vu32*)(data - 6) = 0xF00FF00F;
+    DC_FlushRange(data - 6, 4);
     
     //wifi_printlnf("link in 0x%x bytes", len);
     

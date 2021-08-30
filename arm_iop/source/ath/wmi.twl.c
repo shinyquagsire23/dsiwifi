@@ -108,7 +108,7 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
 {
     if (len <= 0x1C) return;
     
-    if (ap_found) return;
+    //if (ap_found) return;
     
     //wifi_printlnf("WMI_BSSINFO");
 
@@ -689,26 +689,7 @@ bool wmi_is_ready()
 
 void wmi_tick_display()
 {
-    //const u8 broadcast_all[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-#if 0 
-    static int counter = 0;
-    
-    if (counter++ > 0x40)
-    {
-        u32 addr = ath_netif.ip_addr.addr;
-        u8 addr_bytes[4];
-        
-        memcpy(addr_bytes, &addr, 4);
-        
-        char tmp[0x40];
-        snprintf(tmp, 0x40, "Cur IP: %u.%u.%u.%u        ", addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]);
-        //font_draw_string(0,0, WHITE, tmp);
-        
-        //data_send_ip(broadcast_all, device_mac, NULL, 0);
-        counter = 0;
-    }
-#endif
 }
 
 void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)

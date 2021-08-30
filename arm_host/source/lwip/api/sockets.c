@@ -4282,6 +4282,7 @@ ssize_t recvmsg(int s, struct msghdr *message, int flags)
 
 ssize_t send(int s, const void *dataptr, size_t size, int flags)
 {
+    sys_msleep((20 * (size / 0x80)) + 10);
     return lwip_send(s, dataptr, size, flags);
 }
 
@@ -4293,6 +4294,7 @@ ssize_t sendmsg(int s, const struct msghdr *message, int flags)
 ssize_t sendto(int s, const void *dataptr, size_t size, int flags,
     const struct sockaddr *to, socklen_t tolen)
 {
+    sys_msleep((20 * (size / 0x80)) + 10);
     return lwip_sendto(s, dataptr, size, flags, to, tolen);
 }
 
@@ -4303,6 +4305,7 @@ int socket(int domain, int type, int protocol)
 
 ssize_t write(int s, const void *dataptr, size_t size)
 {
+    sys_msleep((20 * (size / 0x80)) + 10);
     return lwip_write(s, dataptr, size);
 }
 
