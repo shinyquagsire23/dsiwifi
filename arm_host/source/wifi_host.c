@@ -37,6 +37,9 @@ static int ip_data_buf_idx = 0;
 #define DATA_BUF_RINGS (4)
 #define DATA_IN_BUF_RINGS (2)
 #define DATA_BUF_LEN (0x600)
+
+#define IF_MTU_SIZE (0x570)
+
 static u8 __attribute((aligned(16))) ip_data_buf[DATA_BUF_LEN*DATA_BUF_RINGS];
 static u8 __attribute((aligned(16))) ip_data_in_buf[DATA_BUF_LEN*DATA_IN_BUF_RINGS];
 
@@ -47,6 +50,66 @@ static ip_addr_t gw_addr = {0}, netmask = {0};
 
 void ath_lwip_tick();
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
+
+static vu32 wifi_host_data_sent = 0x0;
+static vu32 wifi_host_data_queued = 0x0;
+
+u32 wifi_host_get_data_sent(void)
+{
+    return wifi_host_data_sent;
+}
+
+u32 wifi_host_get_data_queued(void)
+{
+    return wifi_host_data_queued;
+}
+
+void data_init_bufs()
+{
+    for (int i = 0; i < DATA_BUF_RINGS; i++)
+    {
+        void* dst = memUncached(ip_data_buf + (DATA_BUF_LEN * i));
+        *(vu32*)dst = 0xF00FF00F;
+    }
+    
+    for (int i = 0; i < DATA_IN_BUF_RINGS; i++)
+    {
+        void* dst = memUncached(ip_data_in_buf + (DATA_BUF_LEN * i));
+        *(vu32*)dst = 0xF00FF00F;
+    }
+    
+    
+}
+
+void* data_next_buf()
+{
+#if 1
+    for (int j = 0; j < 1000000; j++)
+    {
+        for (int i = 0; i < DATA_BUF_RINGS; i++)
+        {
+            void* dst = memUncached(ip_data_buf + (DATA_BUF_LEN * i));
+            if (*(vu32*)dst == 0xF00FF00F)
+            {
+                //wifi_printf("ret %u\n", i);
+                return dst;
+            }
+        }
+        //wifi_printf("arm9 loop...\n");
+    }
+    return memUncached(ip_data_buf);
+#endif
+
+#if 0
+    void* ret = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
+
+    ip_data_buf_idx = (ip_data_buf_idx + 1) % DATA_BUF_RINGS;
+    
+    memset(ret, 0, DATA_BUF_LEN);
+    
+    return ret;
+#endif
+}
 
 static void wifi_print_mac(const char* prefix, const u8* mac)
 {
@@ -68,10 +131,14 @@ void data_send_link(void* ip_data, u32 ip_data_len)
     if (ip_data_len > DATA_BUF_LEN)
         ip_data_len = DATA_BUF_LEN;
 
-    void* dst = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
-    ip_data_buf_idx = (ip_data_buf_idx + 1) % DATA_BUF_RINGS;
+    void* dst = data_next_buf();
+    
+    
+    //while (*(vu32*)dst != 0xF00FF00F);
 
     memcpy(dst, ip_data, ip_data_len);
+    
+    //wifi_printf("send pkt size %d\n", ip_data_len - 0x40);
     
     Wifi_FifoMsg msg;
     msg.cmd = WIFI_IPCCMD_SENDPKT;
@@ -79,7 +146,12 @@ void data_send_link(void* ip_data, u32 ip_data_len)
     msg.pkt_len = ip_data_len;
     fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
     
+    if (ip_data_len > 0x40 && *(u8*)(dst+0x21) == 0x06)
+        wifi_host_data_queued += (ip_data_len - 0x40);
+    
     //while (*(vu32*)dst != 0xF00FF00F);
+    
+    //wifi_host_data_sent += (ip_data_len - 0x40);
 }
 
 err_t ath_init_fn(struct netif *netif)
@@ -169,6 +241,8 @@ static void wifi_host_get_ap_mac()
 
 static void wifi_host_init_bufs(void)
 {
+    data_init_bufs();
+    
     Wifi_FifoMsg msg;
     msg.cmd = WIFI_IPCCMD_INITBUFS;
     msg.pkt_data = memUncached(ip_data_in_buf);
@@ -276,6 +350,16 @@ static void wifi_host_handleMsg(int len, void* user_data)
 
         data_send_to_lwip(data, len);
     }
+    else if (cmd == WIFI_IPCINT_PKTSENT)
+    {
+        void* data = msg.pkt_data;
+        u32 len = msg.pkt_len;
+
+        if (len > 0x40 && *(u8*)(data+0x21) == 0x06)
+            wifi_host_data_sent += (len - 0x40);
+            
+        *(vu32*)data = 0xF00FF00F;
+    }
     else if (cmd == WIFI_IPCINT_DBGLOG)
     {
         wifi_printf("%s", msg.log_str);
@@ -330,9 +414,9 @@ void wifi_host_tick()
     static int inc_cnt = 0;
     
     timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(10000), wifi_host_tick);
     
-    if (inc_cnt++ == 1) {
+    if (inc_cnt++ == 10) {
         sys_now_inc(1);
         inc_cnt = 0;
     }
@@ -349,7 +433,7 @@ void wifi_host_init()
     wifi_printf("wifi_host_init\n");
     
     // 100ms timer
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(10000), wifi_host_tick);
     
     // Enable FIFO handlers
 	fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_host_handleMsg, 0);

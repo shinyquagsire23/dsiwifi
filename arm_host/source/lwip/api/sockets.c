@@ -41,6 +41,8 @@
 
 #if LWIP_SOCKET /* don't build if not configured for use in lwipopts.h */
 
+#include <nds.h>
+
 #include "lwip/sockets.h"
 #include "lwip/priv/sockets_priv.h"
 #include "lwip/api.h"
@@ -4280,10 +4282,57 @@ ssize_t recvmsg(int s, struct msghdr *message, int flags)
     return lwip_recvmsg(s, message, flags);
 }
 
+extern uint32_t wifi_host_get_data_sent(void);
+extern uint32_t wifi_host_get_data_queued(void);
+extern void ath_lwip_tick();
+
 ssize_t send(int s, const void *dataptr, size_t size, int flags)
 {
-    sys_msleep((20 * (size / 0x80)) + 10);
-    return lwip_send(s, dataptr, size, flags);
+    for (int i = 0; i < 5; i++)
+    {
+        /*int lock = enterCriticalSection();
+        ath_lwip_tick();
+        leaveCriticalSection(lock);*/
+        
+        sys_msleep(1);
+    }
+
+    uint32_t sent = wifi_host_get_data_queued();
+    
+    ssize_t ret = lwip_send(s, dataptr, size, flags);
+    
+    //wifi_printf("pre, %x < %x\n", wifi_host_get_data_sent(), sent);
+    
+    int safety = 0;
+    int minwait = (40 * (ret / 0x80));
+    
+    if (ret < 0x100)
+        minwait = 2000;
+
+    while (wifi_host_get_data_sent() < (sent + ret))
+    {
+        int lock = enterCriticalSection();
+        ath_lwip_tick();
+        ath_lwip_tick();
+        leaveCriticalSection(lock);
+        
+        sys_msleep(1);
+        
+        if (wifi_host_get_data_sent() >= (sent + ret)) break;
+        
+        if (safety++ > minwait) {
+            wifi_printf("bad done %x < %x\n", wifi_host_get_data_sent(), (sent + ret));
+            break;
+        }
+    }
+    
+    // TODO wat
+    if (ret > 0x400)
+    {
+        sys_msleep(10);
+    }
+
+    return ret;
 }
 
 ssize_t sendmsg(int s, const struct msghdr *message, int flags)
@@ -4294,8 +4343,10 @@ ssize_t sendmsg(int s, const struct msghdr *message, int flags)
 ssize_t sendto(int s, const void *dataptr, size_t size, int flags,
     const struct sockaddr *to, socklen_t tolen)
 {
+    ssize_t ret = lwip_sendto(s, dataptr, size, flags, to, tolen);
+
     sys_msleep((20 * (size / 0x80)) + 10);
-    return lwip_sendto(s, dataptr, size, flags, to, tolen);
+    return ret;
 }
 
 int socket(int domain, int type, int protocol)
@@ -4305,8 +4356,10 @@ int socket(int domain, int type, int protocol)
 
 ssize_t write(int s, const void *dataptr, size_t size)
 {
+    ssize_t ret = lwip_write(s, dataptr, size);
+    
     sys_msleep((20 * (size / 0x80)) + 10);
-    return lwip_write(s, dataptr, size);
+    return ret;
 }
 
 ssize_t writev(int s, const struct iovec *iov, int iovcnt)
