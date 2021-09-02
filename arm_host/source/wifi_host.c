@@ -267,7 +267,7 @@ static void wifi_host_lwip_init()
     
     if (netif_add(&ath_netif, &ath_myip_addr, &netmask, &gw_addr, NULL /* priv state */,
                 ath_init_fn, ethernet_input) == NULL) {
-        wifi_printlnf("mch_net_init: netif_add (mchdrv_init) failed");
+        wifi_printlnf("wifi_host_lwip_init: netif_add failed");
         return;
     }
 
@@ -394,9 +394,9 @@ void wifi_host_tick()
     static int inc_cnt = 0;
     
     timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(10000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
     
-    if (inc_cnt++ == 10) {
+    if (inc_cnt++ == 1) {
         sys_now_inc(1);
         inc_cnt = 0;
     }
@@ -413,7 +413,7 @@ void wifi_host_init()
     wifi_printf("wifi_host_init\n");
     
     // 100ms timer
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(10000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
     
     // Enable FIFO handlers
 	fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_host_handleMsg, 0);

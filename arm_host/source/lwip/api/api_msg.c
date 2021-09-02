@@ -330,6 +330,10 @@ recv_tcp(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     msg = LWIP_CONST_CAST(void *, &netconn_closed);
     len = 0;
   }
+  
+  conn->current_msg->msg.w.confirmed += len;
+  
+  //wifi_printf("recv_tcp %x\n", len);
 
   if (sys_mbox_trypost(&conn->recvmbox, msg) != ERR_OK) {
     /* don't deallocate p: it is presented to us later again from tcp_fasttmr! */
@@ -1599,6 +1603,8 @@ void
 lwip_netconn_do_recv(void *m)
 {
   struct api_msg *msg = (struct api_msg *)m;
+  
+  //wifi_printf("do_recv\n");
 
   msg->err = ERR_OK;
   if (msg->conn->pcb.tcp != NULL) {
@@ -1663,7 +1669,7 @@ lwip_netconn_do_writemore(struct netconn *conn  WRITE_DELAYED_PARAM)
   if (conn->current_msg->msg.w.confirmed >= conn->current_msg->msg.w.len) {
     //wifi_printf("super done %x %x \n", conn->current_msg->msg.w.confirmed, conn->current_msg->msg.w.offset);
     sys_sem_t *op_completed_sem = LWIP_API_MSG_SEM(conn->current_msg);
-    conn->current_msg->err = err;
+    conn->current_msg->err = ERR_OK;
     conn->current_msg = NULL;
     conn->state = NETCONN_NONE;
 #if LWIP_TCPIP_CORE_LOCKING
@@ -1805,7 +1811,7 @@ err_mem:
         /* non-blocking write is done on ERR_MEM, set error according
            to partial write or not */
         err = (conn->current_msg->msg.w.offset == 0) ? ERR_WOULDBLOCK : ERR_OK;
-        write_finished = (conn->current_msg->msg.w.offset == 0);
+        write_finished = 0;//(conn->current_msg->msg.w.offset == 0) ? 1 : 0;
       }
     } else {
       /* On errors != ERR_MEM, we don't try writing any more but return

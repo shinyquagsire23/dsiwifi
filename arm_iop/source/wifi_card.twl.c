@@ -49,7 +49,7 @@ int wifi_card_wlan_init();
 static u8* mbox_out_buffer;
 static u8* mbox_buffer;
 
-static int ip_data_out_buf_flip = 0;
+static int ip_data_out_buf_idx = 0;
 static u8* ip_data_out_buf = NULL;
 static u32 ip_data_out_buf_totlen = 0;
 
@@ -708,8 +708,8 @@ u16 wifi_card_mbox0_readpkt(void)
     u16 full_len = round_up(len+6, 0x80);
     
     if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 3 || pkt_type == 4 || pkt_type == 5)) {
-        read_buffer = ip_data_out_buf + (ip_data_out_buf_flip * DATA_BUF_LEN);
-        ip_data_out_buf_flip = !ip_data_out_buf_flip;
+        read_buffer = ip_data_out_buf + (ip_data_out_buf_idx * DATA_BUF_LEN);
+        ip_data_out_buf_idx = (ip_data_out_buf_idx + 1) % (ip_data_out_buf_totlen / DATA_BUF_LEN);
     }
     
     // On the off chance that a packet gets parsed incorrectly (full_len off-by-one, etc)

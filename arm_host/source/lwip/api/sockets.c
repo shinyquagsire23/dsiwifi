@@ -4258,17 +4258,24 @@ int listen(int s, int backlog)
 
 ssize_t recv(int s, void *mem, size_t len, int flags)
 {
-    return lwip_recv(s, mem, len, flags);
+    ssize_t ret = lwip_recv(s, mem, len, flags);
+    
+    //sys_msleep((20 * (ret / 0x80)) + 10);
+    //sys_msleep(10);
+    
+    return ret;
 }
 
 ssize_t read(int s, void *mem, size_t len)
 {
-    return lwip_read(s, mem, len);
+    ssize_t ret = lwip_read(s, mem, len);
+    return ret;
 }
 
 ssize_t readv(int s, const struct iovec *iov, int iovcnt)
 {
-    return lwip_readv(s, iov, iovcnt);
+    ssize_t ret = lwip_readv(s, iov, iovcnt);
+    return ret;
 }
 
 ssize_t recvfrom(int s, void *mem, size_t len, int flags,

@@ -20,6 +20,16 @@
 #include <nds.h>
 #include <nds/interrupts.h>
 
+enum ap_security_type_t
+{
+    AP_OPEN,
+    AP_WEP,
+    AP_WPA,
+    AP_WPA2,
+};
+
+static int ap_security_type = AP_OPEN;
+
 static u8 device_mac[6];
 
 static u8 device_num_channels = 0;
@@ -138,6 +148,8 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
     
     char* sec_type = (wmi_frame_hdr->capability & 0x10) ? "WEP" : "None";
     
+    int sec_type_enum = AP_OPEN;
+    
     bool is_wpa2 = false;
     while (data_left > 0)
     {
@@ -151,10 +163,12 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
         else if (id == 0xDD && !is_wpa2) // RSN
         {
             sec_type = "WPA";
+            sec_type_enum = AP_WPA2;
         }
         else if (id == 0x30) // RSN
         {
             is_wpa2 = true;
+            sec_type_enum = AP_WPA2;
 
             // TODO read pairwise count
             //u16 version = *(u16*)&read_ptr[2];
@@ -197,6 +211,13 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
             ap_pass = wifi_card_nvram_configs[ap_nvram_idx].pass;
             memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx].pmk, 0x20);
             ap_snr = wmi_params->snr;
+            
+            if (ap_pass[0] == 0)
+            {
+                sec_type_enum = AP_OPEN;
+            }
+            
+            ap_security_type = sec_type_enum;
 
             memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
             ap_found = true;
@@ -310,6 +331,11 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             ap_connected = true;
             
             wifi_card_send_connect();
+            
+            if (ap_security_type == AP_OPEN)
+            {
+                wmi_post_handshake(NULL, NULL);
+            }
             
             break;
         }
@@ -427,26 +453,72 @@ void wmi_start_scan()
 
 void wmi_connect_cmd()
 {
-    struct __attribute__((packed)) {
-        u8 networkType;
-        u8 dot11AuthMode;
-        u8 authMode;
-        u8 pairwiseCryptoType;
-        u8 pairwiseCryptoLen;
-        u8 groupCryptoType;
-        u8 groupCryptoLen;
-        u8 ssidLength;
-        char ssid[0x20];
-        u16 channel;
-        u8 bssid[6];
-        u32 ctrl_flags;
-    }  wmi_params = { 1, 1, 5, 4, 0, 4, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 };
-    // wmi_params = { 1, 1, 1, 1, 0, 1, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // open
-    
-    strcpy(wmi_params.ssid, ap_name);
-    memcpy(wmi_params.bssid, ap_bssid, 6);
-    
-    wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
+    if (ap_security_type == AP_OPEN)
+    {
+        struct __attribute__((packed)) {
+            u8 networkType;
+            u8 dot11AuthMode;
+            u8 authMode;
+            u8 pairwiseCryptoType;
+            u8 pairwiseCryptoLen;
+            u8 groupCryptoType;
+            u8 groupCryptoLen;
+            u8 ssidLength;
+            char ssid[0x20];
+            u16 channel;
+            u8 bssid[6];
+            u32 ctrl_flags;
+        }  wmi_params = { 1, 1, 1, 1, 0, 1, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // open
+        
+        strcpy(wmi_params.ssid, ap_name);
+        memcpy(wmi_params.bssid, ap_bssid, 6);
+        
+        wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
+    }
+    else if (ap_security_type == AP_WPA2)
+    {
+        struct __attribute__((packed)) {
+            u8 networkType;
+            u8 dot11AuthMode;
+            u8 authMode;
+            u8 pairwiseCryptoType;
+            u8 pairwiseCryptoLen;
+            u8 groupCryptoType;
+            u8 groupCryptoLen;
+            u8 ssidLength;
+            char ssid[0x20];
+            u16 channel;
+            u8 bssid[6];
+            u32 ctrl_flags;
+        }  wmi_params = { 1, 1, 5, 4, 0, 4, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
+        
+        strcpy(wmi_params.ssid, ap_name);
+        memcpy(wmi_params.bssid, ap_bssid, 6);
+        
+        wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
+    }
+    else
+    {
+        struct __attribute__((packed)) {
+            u8 networkType;
+            u8 dot11AuthMode;
+            u8 authMode;
+            u8 pairwiseCryptoType;
+            u8 pairwiseCryptoLen;
+            u8 groupCryptoType;
+            u8 groupCryptoLen;
+            u8 ssidLength;
+            char ssid[0x20];
+            u16 channel;
+            u8 bssid[6];
+            u32 ctrl_flags;
+        }  wmi_params = { 1, 1, 5, 4, 0, 4, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
+        
+        strcpy(wmi_params.ssid, ap_name);
+        memcpy(wmi_params.bssid, ap_bssid, 6);
+        
+        wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
+    }
 }
 
 void wmi_disconnect_cmd()
@@ -701,10 +773,13 @@ void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)
     data_send_pkt((u8*)&dummy, sizeof(dummy));
     data_send_pkt((u8*)&dummy, sizeof(dummy));
     
-    wmi_add_cipher_key(0, 0, tk);
-        
-    wmi_add_cipher_key(gtk_info->keyidx, 1, gtk_info->key);
-    wifi_printlnf("Added GTK %x", gtk_info->keyidx);
+    if (ap_security_type == AP_WPA2)
+    {
+        wmi_add_cipher_key(0, 0, tk);
+            
+        wmi_add_cipher_key(gtk_info->keyidx, 1, gtk_info->key);
+        wifi_printlnf("Added GTK %x", gtk_info->keyidx);
+    }
     
     tmp8 = 1;
     wmi_send_pkt(WMI_SYNCHRONIZE_CMD, MBOXPKT_REQACK, &tmp8, sizeof(tmp8)); // 0x0?
@@ -761,6 +836,7 @@ void data_send_wpa_handshake2(const u8* dst_bssid, const u8* src_bssid, u64 repl
     putbe16(data_hdr.keylen_be, 0);
     putbe64(data_hdr.replay_counter_be, replay_cnt);
     
+    // TODO rand()
     const u8 test_nonce[32] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
     
     memcpy(data_hdr.wpa_nonce, test_nonce, 32);
@@ -865,6 +941,7 @@ void data_handle_auth(u8* pkt_data, u32 len, const u8* dev_bssid, const u8* ap_b
     
     // TODO: Use bitmasks instead of constants
     // TODO: 0x1382, Group Message (1/2)
+    // TODO: WPA, WEP?
     // If not handled, disconnects and reconnects
     
     if (keyinfo == 0x008A)
