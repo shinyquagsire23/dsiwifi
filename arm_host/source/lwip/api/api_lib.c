@@ -1048,6 +1048,7 @@ netconn_write_vectors_partly(struct netconn *conn, struct netvector *vectors, u1
   API_MSG_VAR_REF(msg).msg.w.apiflags = apiflags;
   API_MSG_VAR_REF(msg).msg.w.len = size;
   API_MSG_VAR_REF(msg).msg.w.offset = 0;
+  API_MSG_VAR_REF(msg).msg.w.confirmed = 0;
 #if LWIP_SO_SNDTIMEO
   if (conn->send_timeout != 0) {
     /* get the time we started, which is later compared to

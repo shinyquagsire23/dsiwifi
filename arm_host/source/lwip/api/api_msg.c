@@ -406,11 +406,15 @@ sent_tcp(void *arg, struct tcp_pcb *pcb, u16_t len)
   LWIP_ASSERT("conn != NULL", (conn != NULL));
 
   if (conn) {
+    conn->current_msg->msg.w.confirmed += len;
+    
     if (conn->state == NETCONN_WRITE) {
       lwip_netconn_do_writemore(conn  WRITE_DELAYED);
     } else if (conn->state == NETCONN_CLOSE) {
       lwip_netconn_do_close_internal(conn  WRITE_DELAYED);
     }
+
+    //wifi_printf("sent %x bytes tcp\n", len);
 
     /* If the queued byte- or pbuf-count drops below the configured low-water limit,
        let select mark this pcb as writable again. */
@@ -1653,14 +1657,37 @@ lwip_netconn_do_writemore(struct netconn *conn  WRITE_DELAYED_PARAM)
   u8_t dontblock;
   u8_t apiflags;
   u8_t write_more;
+  
+  // Added hack: We want to always wait for sent_tcp on the last write,
+  // so to signal this we set w.len to 0.
+  if (conn->current_msg->msg.w.confirmed >= conn->current_msg->msg.w.len) {
+    //wifi_printf("super done %x %x \n", conn->current_msg->msg.w.confirmed, conn->current_msg->msg.w.offset);
+    sys_sem_t *op_completed_sem = LWIP_API_MSG_SEM(conn->current_msg);
+    conn->current_msg->err = err;
+    conn->current_msg = NULL;
+    conn->state = NETCONN_NONE;
+#if LWIP_TCPIP_CORE_LOCKING
+    //if (delayed)
+#endif
+    {
+      sys_sem_signal(op_completed_sem);
+    }
+    return ERR_OK;
+  }
+  
+  if (conn->current_msg->msg.w.confirmed < conn->current_msg->msg.w.offset) {
+    return ERR_MEM;
+  }
 
   LWIP_ASSERT("conn != NULL", conn != NULL);
   LWIP_ASSERT("conn->state == NETCONN_WRITE", (conn->state == NETCONN_WRITE));
   LWIP_ASSERT("conn->current_msg != NULL", conn->current_msg != NULL);
   LWIP_ASSERT("conn->pcb.tcp != NULL", conn->pcb.tcp != NULL);
-  LWIP_ASSERT("conn->current_msg->msg.w.offset < conn->current_msg->msg.w.len",
-              conn->current_msg->msg.w.offset < conn->current_msg->msg.w.len);
+  //LWIP_ASSERT("conn->current_msg->msg.w.offset < conn->current_msg->msg.w.len",
+  //            conn->current_msg->msg.w.offset < conn->current_msg->msg.w.len);
   LWIP_ASSERT("conn->current_msg->msg.w.vector_cnt > 0", conn->current_msg->msg.w.vector_cnt > 0);
+
+  //wifi_printf("writemore %x %x %x\n", conn->current_msg->msg.w.confirmed, conn->current_msg->msg.w.offset, conn->current_msg->msg.w.len);
 
   apiflags = conn->current_msg->msg.w.apiflags;
   dontblock = netconn_is_nonblocking(conn) || (apiflags & NETCONN_DONTBLOCK);
@@ -1750,7 +1777,7 @@ err_mem:
       err_t out_err;
       if ((conn->current_msg->msg.w.offset == conn->current_msg->msg.w.len) || dontblock) {
         /* return sent length (caller reads length from msg.w.offset) */
-        write_finished = 1;
+        write_finished = 0;
       }
       out_err = tcp_output(conn->pcb.tcp);
       if (out_err == ERR_RTE) {
@@ -1778,7 +1805,7 @@ err_mem:
         /* non-blocking write is done on ERR_MEM, set error according
            to partial write or not */
         err = (conn->current_msg->msg.w.offset == 0) ? ERR_WOULDBLOCK : ERR_OK;
-        write_finished = 1;
+        write_finished = (conn->current_msg->msg.w.offset == 0);
       }
     } else {
       /* On errors != ERR_MEM, we don't try writing any more but return
@@ -1789,6 +1816,7 @@ err_mem:
   if (write_finished) {
     /* everything was written: set back connection state
        and back to application task */
+    //wifi_printf("finish signal\n");
     sys_sem_t *op_completed_sem = LWIP_API_MSG_SEM(conn->current_msg);
     conn->current_msg->err = err;
     conn->current_msg = NULL;

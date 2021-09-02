@@ -1024,8 +1024,8 @@ static void wifi_card_handleMsg(int len, void* user_data)
         //*(vu32*)data = 0xF00FF00F; // mark packet processed
         
         // Craft and send msg
-        msg.cmd = WIFI_IPCINT_PKTSENT;
-        fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+        //msg.cmd = WIFI_IPCINT_PKTSENT;
+        //fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
     }
     else if (cmd == WIFI_IPCCMD_GET_DEVICE_MAC)
     {

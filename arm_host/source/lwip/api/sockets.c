@@ -4282,55 +4282,9 @@ ssize_t recvmsg(int s, struct msghdr *message, int flags)
     return lwip_recvmsg(s, message, flags);
 }
 
-extern uint32_t wifi_host_get_data_sent(void);
-extern uint32_t wifi_host_get_data_queued(void);
-extern void ath_lwip_tick();
-
 ssize_t send(int s, const void *dataptr, size_t size, int flags)
 {
-    for (int i = 0; i < 5; i++)
-    {
-        /*int lock = enterCriticalSection();
-        ath_lwip_tick();
-        leaveCriticalSection(lock);*/
-        
-        sys_msleep(1);
-    }
-
-    uint32_t sent = wifi_host_get_data_queued();
-    
     ssize_t ret = lwip_send(s, dataptr, size, flags);
-    
-    //wifi_printf("pre, %x < %x\n", wifi_host_get_data_sent(), sent);
-    
-    int safety = 0;
-    int minwait = (40 * (ret / 0x80));
-    
-    if (ret < 0x100)
-        minwait = 2000;
-
-    while (wifi_host_get_data_sent() < (sent + ret))
-    {
-        int lock = enterCriticalSection();
-        ath_lwip_tick();
-        ath_lwip_tick();
-        leaveCriticalSection(lock);
-        
-        sys_msleep(1);
-        
-        if (wifi_host_get_data_sent() >= (sent + ret)) break;
-        
-        if (safety++ > minwait) {
-            wifi_printf("bad done %x < %x\n", wifi_host_get_data_sent(), (sent + ret));
-            break;
-        }
-    }
-    
-    // TODO wat
-    if (ret > 0x400)
-    {
-        sys_msleep(10);
-    }
 
     return ret;
 }
@@ -4345,7 +4299,6 @@ ssize_t sendto(int s, const void *dataptr, size_t size, int flags,
 {
     ssize_t ret = lwip_sendto(s, dataptr, size, flags, to, tolen);
 
-    sys_msleep((20 * (size / 0x80)) + 10);
     return ret;
 }
 
@@ -4358,7 +4311,6 @@ ssize_t write(int s, const void *dataptr, size_t size)
 {
     ssize_t ret = lwip_write(s, dataptr, size);
     
-    sys_msleep((20 * (size / 0x80)) + 10);
     return ret;
 }
 

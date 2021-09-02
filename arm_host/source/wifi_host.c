@@ -51,18 +51,6 @@ static ip_addr_t gw_addr = {0}, netmask = {0};
 void ath_lwip_tick();
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
 
-static vu32 wifi_host_data_sent = 0x0;
-static vu32 wifi_host_data_queued = 0x0;
-
-u32 wifi_host_get_data_sent(void)
-{
-    return wifi_host_data_sent;
-}
-
-u32 wifi_host_get_data_queued(void)
-{
-    return wifi_host_data_queued;
-}
 
 void data_init_bufs()
 {
@@ -83,7 +71,7 @@ void data_init_bufs()
 
 void* data_next_buf()
 {
-#if 1
+#if 0
     for (int j = 0; j < 1000000; j++)
     {
         for (int i = 0; i < DATA_BUF_RINGS; i++)
@@ -100,7 +88,7 @@ void* data_next_buf()
     return memUncached(ip_data_buf);
 #endif
 
-#if 0
+#if 1
     void* ret = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
 
     ip_data_buf_idx = (ip_data_buf_idx + 1) % DATA_BUF_RINGS;
@@ -146,12 +134,7 @@ void data_send_link(void* ip_data, u32 ip_data_len)
     msg.pkt_len = ip_data_len;
     fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
     
-    if (ip_data_len > 0x40 && *(u8*)(dst+0x21) == 0x06)
-        wifi_host_data_queued += (ip_data_len - 0x40);
-    
     //while (*(vu32*)dst != 0xF00FF00F);
-    
-    //wifi_host_data_sent += (ip_data_len - 0x40);
 }
 
 err_t ath_init_fn(struct netif *netif)
@@ -354,9 +337,6 @@ static void wifi_host_handleMsg(int len, void* user_data)
     {
         void* data = msg.pkt_data;
         u32 len = msg.pkt_len;
-
-        if (len > 0x40 && *(u8*)(data+0x21) == 0x06)
-            wifi_host_data_sent += (len - 0x40);
             
         *(vu32*)data = 0xF00FF00F;
     }
