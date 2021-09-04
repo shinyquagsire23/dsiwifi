@@ -91,6 +91,7 @@ static bool wifi_card_bInitted = false;
 
 static u32 __attribute((aligned(16))) wifi_card_alignedbuf_small[4];
 
+nvram_cfg_wep wifi_card_nvram_wep_configs[3];
 nvram_cfg wifi_card_nvram_configs[3];
 
 int wifi_printf_allowed = 0;
@@ -1064,6 +1065,12 @@ void wifi_card_init(void)
     mbox_out_buffer = memalign(16, MBOX_TMPBUF_SIZE);
 
     // Read NVRAM settings
+    u32 end_addr = 0x1FE00;
+    
+    readFirmware(0x20, &end_addr, sizeof(u32));
+    end_addr *= 0x8;
+    
+    readFirmware(end_addr - 0x400, (void*)wifi_card_nvram_wep_configs, sizeof(wifi_card_nvram_wep_configs));
     readFirmware(NVRAM_ADDR_WIFICFG, (void*)wifi_card_nvram_configs, sizeof(wifi_card_nvram_configs));
 
     wifi_ndma_init();

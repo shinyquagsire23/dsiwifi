@@ -58,12 +58,19 @@ static u8 device_num_channels = 0;
 static u8 device_cur_channel_idx = 0;
 static u16 channel_freqs[32];
 
+static u8 ap_wep_dummy[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
 static bool ap_found = false;
 static u16 ap_channel = 0;
 static u8 ap_bssid[6];
 static u16 ap_caps;
 static char* ap_name = "";
 static char* ap_pass = "";
+static u8* ap_wep1 = ap_wep_dummy;
+static u8* ap_wep2 = ap_wep_dummy;
+static u8* ap_wep3 = ap_wep_dummy;
+static u8* ap_wep4 = ap_wep_dummy;
+static u8 ap_wepmode = 0;
 static u8 ap_pmk[0x20];
 static int ap_nvram_idx = 0;
 static u16 ap_snr = 0;
@@ -226,6 +233,8 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
         u8 elements[];
     } *wmi_frame_hdr = (void*)wmi_params->body;
     
+    if (wmi_params->snr < 0x20) goto done;
+    
     s32 data_left = len - 0x10 - 0xC;
     u8* read_ptr = wmi_frame_hdr->elements;
     
@@ -292,6 +301,9 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
 
                 if (auth == IEEE_AUTH_PSK) break;
             }
+            
+            if (pair_crypto == CRYPT_TKIP)
+                sec_type_enum = AP_WPA;
         }
 
 skip_parse:
@@ -305,32 +317,63 @@ skip_parse:
     for (int i = 0; i < 3; i++)
     {
         if (!wifi_card_nvram_configs[i].ssid[0]) continue;
-        if (wmi_params->snr < 0x20) continue;
+        if (wifi_card_nvram_configs[i].wpa_mode == 0xFF) continue;
+        if (!wifi_card_nvram_configs[i].slot_idx) continue;
 
         //TODO if an AP fails too many times, ignore it.
         if (!strncmp(tmp, wifi_card_nvram_configs[i].ssid, strlen(wifi_card_nvram_configs[i].ssid)) && wmi_params->snr > ap_snr)
         {
-            ap_nvram_idx = i;
-            ap_channel = wmi_params->channel;
-            ap_caps = wmi_frame_hdr->capability;
-            ap_name = wifi_card_nvram_configs[ap_nvram_idx].ssid;
-            ap_pass = wifi_card_nvram_configs[ap_nvram_idx].pass;
-            memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx].pmk, 0x20);
-            ap_snr = wmi_params->snr;
+            ap_nvram_idx = i+3;
+            ap_name = wifi_card_nvram_configs[ap_nvram_idx-3].ssid;
+            ap_pass = wifi_card_nvram_configs[ap_nvram_idx-3].pass;
+            memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx-3].pmk, 0x20);
+            
+            int wep_mode = wifi_card_nvram_configs[ap_nvram_idx-3].wep_mode;
+            int wpa_mode = wifi_card_nvram_configs[ap_nvram_idx-3].wpa_mode;
+            int ap_flash_wpa_type = wifi_card_nvram_configs[ap_nvram_idx-3].wpa_type;
+            
+            if (wep_mode)
+            {
+                sec_type_enum = AP_WEP;
+                ap_wepmode = wep_mode;
+                ap_wep1 = wifi_card_nvram_configs[ap_nvram_idx].wep_key1;
+                ap_wep2 = wifi_card_nvram_configs[ap_nvram_idx].wep_key2;
+                ap_wep3 = wifi_card_nvram_configs[ap_nvram_idx].wep_key3;
+                ap_wep4 = wifi_card_nvram_configs[ap_nvram_idx].wep_key4;
+                ap_pass = ap_wep1;
+            }
             
             // If the password is empty, assume open.
             if (ap_pass[0] == 0)
             {
                 sec_type_enum = AP_OPEN;
             }
-            
-            if (ap_pass[0] != 0 && ap_auth_type == AUTH_NONE)
+
+            if (ap_pass[0] != 0 && ap_auth_type == AUTH_NONE && sec_type_enum == AP_OPEN)
             {
-                wifi_printf("AP missing RSN??? Trying defaults...\n");
+                wifi_printf("AP missing RSN??? Using flash vals.\n");
                 sec_type_enum = AP_WPA2;
-                ap_group_crypt_type = CRYPT_TKIP;
-                ap_pair_crypt_type = CRYPT_AES;
                 ap_auth_type = AUTH_PSK;
+                if (ap_flash_wpa_type == WPATYPE_WPA_TKIP || ap_flash_wpa_type == WPATYPE_WPA_AES)
+                {
+                    wifi_printf("WPA is currently unsupported.\n");
+                    continue;
+                }
+                else if (ap_flash_wpa_type == WPATYPE_WPA2_TKIP)
+                {
+                    ap_group_crypt_type = CRYPT_TKIP;
+                    ap_pair_crypt_type = CRYPT_AES;
+                }
+                else if (ap_flash_wpa_type == WPATYPE_WPA2_AES)
+                {
+                    ap_group_crypt_type = CRYPT_AES;
+                    ap_pair_crypt_type = CRYPT_AES;
+                }
+                else
+                {
+                    wifi_printf("Unk flash val %02x\n", ap_flash_wpa_type);
+                    continue;
+                }
             }
             
             // Definitely WPA2 though, in this case
@@ -339,10 +382,27 @@ skip_parse:
                 sec_type_enum = AP_WPA2;
             }
             
+            if (sec_type_enum == AP_WEP)
+            {
+                group_crypto = CRYPT_WEP;
+                pair_crypto = CRYPT_WEP;
+                ap_auth_type = AUTH_NONE;
+                wifi_printf("WEP is currently unsupported.\n");
+            }
+            
+            if (sec_type_enum == AP_WPA)
+            {
+                wifi_printf("WPA is currently unsupported.\n");
+                continue;
+            }
+            
             ap_security_type = sec_type_enum;
             ap_group_crypt_type = group_crypto;
             ap_pair_crypt_type = pair_crypto;
             ap_auth_type = auth_type;
+            ap_snr = wmi_params->snr;
+            ap_channel = wmi_params->channel;
+            ap_caps = wmi_frame_hdr->capability;
 
             memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
             ap_found = true;
@@ -357,6 +417,73 @@ skip_parse:
         }
     }
     
+    if (ap_found) goto done;
+    
+    // WEP/NDS legacy configs
+    for (int i = 0; i < 3; i++)
+    {
+        if (!wifi_card_nvram_wep_configs[i].ssid[0]) continue;
+        if (wifi_card_nvram_wep_configs[i].status == 0xFF) continue;
+        if (!wifi_card_nvram_wep_configs[i].slot_idx) continue;
+
+        //TODO if an AP fails too many times, ignore it.
+        if (!strncmp(tmp, wifi_card_nvram_wep_configs[i].ssid, strlen(wifi_card_nvram_wep_configs[i].ssid)) && wmi_params->snr > ap_snr)
+        {
+            ap_nvram_idx = i;
+            ap_channel = wmi_params->channel;
+            ap_caps = wmi_frame_hdr->capability;
+            ap_name = wifi_card_nvram_wep_configs[ap_nvram_idx].ssid;
+            ap_wep1 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key1;
+            ap_wep2 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key2;
+            ap_wep3 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key3;
+            ap_wep4 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key4;
+            ap_wepmode = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_mode;
+            ap_pass = ap_wep1;
+            memset(ap_pmk, 0, 0x20);
+            ap_snr = wmi_params->snr;
+            
+            // If the password is empty, assume open.
+            if (ap_pass[0] == 0)
+            {
+                sec_type_enum = AP_OPEN;
+            }
+            else
+            {
+                sec_type_enum = AP_WEP;
+            }
+            
+            ap_security_type = sec_type_enum;
+            if (ap_security_type == AP_OPEN)
+            {
+                ap_group_crypt_type = CRYPT_NONE;
+                ap_pair_crypt_type = CRYPT_NONE;
+                ap_auth_type = AUTH_NONE;
+            }
+            else
+            {
+                ap_group_crypt_type = CRYPT_WEP;
+                ap_pair_crypt_type = CRYPT_WEP;
+                ap_auth_type = AUTH_NONE;
+            }
+
+            memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
+            ap_found = true;
+            
+            wifi_printlnf("WMI_BSSINFO %s (%s)", tmp, wmi_ap_sec_type_str(ap_security_type));
+            wifi_printlnf("  BSSID %02x:%02x:%02x:%02x:%02x:%02x", ap_bssid[0], ap_bssid[1], ap_bssid[2], ap_bssid[3], ap_bssid[4], ap_bssid[5]);
+            wifi_printlnf("  %x %x %x -- %x %x", ap_group_crypt_type, ap_pair_crypt_type, ap_auth_type, wmi_params->snr, ap_channel);
+            
+            // We don't support WEP
+            if (ap_security_type == AP_WEP)
+            {
+                wifi_printlnf("WEP is currently unsupported...");
+                //continue;
+            }
+            
+            wmi_set_bss_filter(0,0); // scan for beacons
+            break;
+        }
+    }
     
     
     //if (tmp[0])
@@ -369,7 +496,7 @@ skip_parse:
     {
         wifi_printlnf("%04x: %02x %02x %02x %02x %02x %02x %02x %02x", i, dump_ptr[i+0], dump_ptr[i+1], dump_ptr[i+2], dump_ptr[i+3], dump_ptr[i+4], dump_ptr[i+5], dump_ptr[i+6], dump_ptr[i+7]);
     }*/
-    
+done:
     scan_done = true;
 }
 
@@ -459,7 +586,7 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             
             wifi_card_send_connect();
             
-            if (ap_security_type == AP_OPEN)
+            if (ap_security_type == AP_OPEN || ap_security_type == AP_WEP)
             {
                 wmi_post_handshake(NULL, NULL, NULL);
             }
@@ -483,7 +610,7 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
                 wmi_scan();
             }
             
-            if (ap_connected && (disconnectReason == 4 || disconnectReason == 1)) {
+            if (ap_connected && (disconnectReason == 4 || disconnectReason == 1 || disconnectReason == 5)) {
                 ap_found = false;
                 ap_connected = false;
                 sent_connect = false;
@@ -508,6 +635,18 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             
             u32 arg0 = 0x7F;
             wmi_send_pkt(WMI_TARGET_ERROR_REPORT_BITMASK_CMD, MBOXPKT_REQACK, &arg0, sizeof(u32));
+            
+            if (err_id == 0x8)
+            {
+                ap_found = false;
+                ap_connected = false;
+                sent_connect = false;
+                num_rounds_scanned = 0;
+                
+                wmi_disconnect_cmd();
+                wmi_delete_bad_ap_cmd();
+                wmi_scan();
+            }
             
             break;
         }
@@ -607,8 +746,14 @@ void wmi_connect_cmd()
         
         wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
     }
-    else if (ap_security_type == AP_WPA2)
+    else if (ap_security_type == AP_WEP)
     {
+        // Keys have to be set before connect
+        wmi_add_cipher_key(0, 3, ap_wep1, NULL);
+        wmi_add_cipher_key(1, 1, ap_wep2, NULL);
+        wmi_add_cipher_key(2, 1, ap_wep3, NULL);
+        wmi_add_cipher_key(3, 1, ap_wep4, NULL);
+        
         struct __attribute__((packed)) {
             u8 networkType;
             u8 dot11AuthMode;
@@ -622,14 +767,14 @@ void wmi_connect_cmd()
             u16 channel;
             u8 bssid[6];
             u32 ctrl_flags;
-        }  wmi_params = { 1, 1, 5, ap_pair_crypt_type, 0, ap_group_crypt_type, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
+        }  wmi_params = { 1, 2, 1, CRYPT_WEP, 0, CRYPT_WEP, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // open
         
         strcpy(wmi_params.ssid, ap_name);
         memcpy(wmi_params.bssid, ap_bssid, 6);
         
         wmi_send_pkt(WMI_CONNECT_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
     }
-    else
+    else //if (ap_security_type == AP_WPA2)
     {
         struct __attribute__((packed)) {
             u8 networkType;
@@ -728,7 +873,7 @@ void wmi_set_tx_power()
 {
     struct {
         u8 dbm;
-    } wmi_params = { 256 };
+    } wmi_params = { 255 };
     
     wmi_send_pkt(WMI_SET_TX_PWR_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
 }
@@ -746,9 +891,22 @@ void wmi_dbgoff()
 
 void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc)
 {
-    u8 crypt_type = (usage == 1) ? ap_group_crypt_type : 0x4 /* WPA2, AES */;
+    u8 crypt_type = (usage == 1) ? ap_group_crypt_type : CRYPT_AES /* WPA2, AES */;
     u8 crypt_keylen = (crypt_type == CRYPT_TKIP) ? 0x20 : 0x10;
     
+    if (ap_security_type == AP_WEP)
+    {
+        crypt_type = CRYPT_WEP;
+        
+        crypt_keylen = 13;
+        if (ap_wepmode == 0x1 || ap_wepmode == 0x5)
+            crypt_keylen = 5;
+        else if (ap_wepmode == 0x3 || ap_wepmode == 0x7)
+            crypt_keylen = 0x10;
+        
+        wifi_printf("Add key %x %x %x %x\n", idx, crypt_type, usage, crypt_keylen);
+    }
+
     struct {
         u8 keyIndex;
         u8 keyType;
@@ -759,7 +917,7 @@ void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc)
         u8 key_op_ctrl;
     } wmi_params = { idx, crypt_type, usage, crypt_keylen, {0}, {0}, 3 };
     
-    memcpy(wmi_params.key, key, 0x10);
+    memcpy(wmi_params.key, key, crypt_keylen < 0x10 ? crypt_keylen : 0x10);
     if (crypt_keylen > 0x10)
     {
         memcpy(wmi_params.key+0x10, key+0x18, 0x8);

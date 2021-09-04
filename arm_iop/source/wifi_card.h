@@ -28,13 +28,76 @@ typedef struct {
     wifi_sdio_ctx tmio;
 } wifi_card_ctx;
 
+enum wpa_type_t
+{
+    WPATYPE_NONE = 0,
+    WPATYPE_WPA_TKIP = 4,
+    WPATYPE_WPA2_TKIP = 5,
+    WPATYPE_WPA_AES = 6,
+    WPATYPE_WPA2_AES = 7,
+};
+
 typedef struct {
-    u8 unk1[0x40];
-    char ssid[0x80];
-    u8 unk2[0x40];
+    u8 unk_00[0x40];
+    char ssid[0x20];
+    char ssid_wep64[0x20];
+    u8 wep_key1[0x10];
+    u8 wep_key2[0x10];
+    u8 wep_key3[0x10];
+    u8 wep_key4[0x10];
+    u8 ip[4];
+    u8 gateway[4];
+    u8 primary_dns[4];
+    u8 secondary_dns[4];
+    u8 subnet_mask;
+    u8 unk_D1[0x15];
+    u8 wep_mode;
+    u8 status; // 00 = Normal, 01 = AOSS, FF = not configured/deleted
+    u8 unk_E8;
+    u8 unk_E9;
+    u16 mtu;
+    u8 unk_EC[3];
+    u8 slot_idx;
+    u8 wfc_uid[6];
+    u8 unk_F6[0x8];
+    u16 crc16_0_to_FD;
+} nvram_cfg_wep;
+
+typedef struct {
+    char proxy_username[0x20];
+    char proxy_password[0x20];
+    char ssid[0x20];
+    char ssid_wep64[0x20];
+    u8 wep_key1[0x10];
+    u8 wep_key2[0x10];
+    u8 wep_key3[0x10];
+    u8 wep_key4[0x10];
+    u8 ip[4];
+    u8 gateway[4];
+    u8 primary_dns[4];
+    u8 secondary_dns[4];
+    u8 subnet_mask;
+    u8 unk_D1[0x15];
+    u8 wep_mode;
+    u8 wpa_mode;
+    u8 ssid_len;
+    u8 unk_E9;
+    u16 mtu;
+    u8 unk_EC[3];
+    u8 slot_idx;
+    u8 unk_F0[0xE];
+    u16 crc16_0_to_FD;
     u8 pmk[0x20];
-    char pass[0x80];
-    u8 unk3[0x60];
+    char pass[0x40];
+    u8 unk_160[0x21];
+    u8 wpa_type;
+    u8 proxy_en;
+    u8 proxy_auth_en;
+    char proxy_name[0x30];
+    u8 unk_1B4[0x34];
+    u16 proxy_port;
+    u8 unk_1EA[0x14];
+    u16 crc16_100_to_1FE;
 } nvram_cfg;
 
 #define F1_HOST_INT_STATUS      (0x400)
@@ -50,6 +113,7 @@ typedef struct {
 #define F1_INT_STATUS_ENABLE    (0x418)
 #define F1_COUNT4               (0x450)
 
+extern nvram_cfg_wep wifi_card_nvram_wep_configs[3];
 extern nvram_cfg wifi_card_nvram_configs[3];
 
 u32 wifi_card_read_func1_u32(u32 addr);
