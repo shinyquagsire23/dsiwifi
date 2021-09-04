@@ -64,7 +64,7 @@ static bool ap_found = false;
 static u16 ap_channel = 0;
 static u8 ap_bssid[6];
 static u16 ap_caps;
-static char* ap_name = "";
+static char ap_name[32+1];
 static char* ap_pass = "";
 static u8* ap_wep1 = ap_wep_dummy;
 static u8* ap_wep2 = ap_wep_dummy;
@@ -239,7 +239,9 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
     u8* read_ptr = wmi_frame_hdr->elements;
     
     char tmp[32+1];
+    char tmp_2[32+1];
     memset(tmp, 0, sizeof(tmp));
+    memset(tmp_2, 0, sizeof(tmp_2));
     
     int sec_type_enum = AP_OPEN;
     int group_crypto = CRYPT_NONE;
@@ -319,12 +321,18 @@ skip_parse:
         if (!wifi_card_nvram_configs[i].ssid[0]) continue;
         if (wifi_card_nvram_configs[i].wpa_mode == 0xFF) continue;
         if (!wifi_card_nvram_configs[i].slot_idx) continue;
+        
+        u8 ssid_len = wifi_card_nvram_configs[i].ssid_len;
+        if (ssid_len > 0x20)
+            ssid_len = 0x20;
+        memcpy(tmp_2, wifi_card_nvram_configs[i].ssid, ssid_len);
+        tmp_2[ssid_len] = 0;
 
         //TODO if an AP fails too many times, ignore it.
-        if (!strncmp(tmp, wifi_card_nvram_configs[i].ssid, strlen(wifi_card_nvram_configs[i].ssid)) && wmi_params->snr > ap_snr)
+        if (!strcmp(tmp, tmp_2) && wmi_params->snr > ap_snr)
         {
             ap_nvram_idx = i+3;
-            ap_name = wifi_card_nvram_configs[ap_nvram_idx-3].ssid;
+            strcpy(ap_name, tmp_2);
             ap_pass = wifi_card_nvram_configs[ap_nvram_idx-3].pass;
             memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx-3].pmk, 0x20);
             
@@ -426,13 +434,16 @@ skip_parse:
         if (wifi_card_nvram_wep_configs[i].status == 0xFF) continue;
         if (!wifi_card_nvram_wep_configs[i].slot_idx) continue;
 
+        memcpy(tmp_2, wifi_card_nvram_wep_configs[i].ssid, 0x20);
+        tmp_2[0x20] = 0;
+
         //TODO if an AP fails too many times, ignore it.
-        if (!strncmp(tmp, wifi_card_nvram_wep_configs[i].ssid, strlen(wifi_card_nvram_wep_configs[i].ssid)) && wmi_params->snr > ap_snr)
+        if (!strcmp(tmp, tmp_2) && wmi_params->snr > ap_snr)
         {
             ap_nvram_idx = i;
             ap_channel = wmi_params->channel;
             ap_caps = wmi_frame_hdr->capability;
-            ap_name = wifi_card_nvram_wep_configs[ap_nvram_idx].ssid;
+            strcpy(ap_name, tmp_2);
             ap_wep1 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key1;
             ap_wep2 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key2;
             ap_wep3 = wifi_card_nvram_wep_configs[ap_nvram_idx].wep_key3;
