@@ -34,8 +34,8 @@ static bool host_bNeedsDHCPRenew = false;
 
 static int ip_data_buf_idx = 0;
 
-#define DATA_BUF_RINGS (4)
-#define DATA_IN_BUF_RINGS (2)
+#define DATA_BUF_RINGS (6)
+#define DATA_IN_BUF_RINGS (6)
 #define DATA_BUF_LEN (0x600)
 
 #define IF_MTU_SIZE (0x570)
@@ -71,8 +71,10 @@ void data_init_bufs()
 
 void* data_next_buf()
 {
-#if 0
-    for (int j = 0; j < 1000000; j++)
+#if 1
+    //for (int j = 0; j < 1000000; j++)
+    //while (1)
+    for (int j = 0; j < 100; j++)
     {
         for (int i = 0; i < DATA_BUF_RINGS; i++)
         {
@@ -85,15 +87,18 @@ void* data_next_buf()
         }
         //wifi_printf("arm9 loop...\n");
     }
-    return memUncached(ip_data_buf);
+    //return memUncached(ip_data_buf);
+    return NULL;
 #endif
 
-#if 1
+#if 0
     void* ret = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
+
+    //wifi_printf("ret %u\n", ip_data_buf_idx);
 
     ip_data_buf_idx = (ip_data_buf_idx + 1) % DATA_BUF_RINGS;
     
-    memset(ret, 0, DATA_BUF_LEN);
+    //memset(ret, 0, DATA_BUF_LEN);
     
     return ret;
 #endif
@@ -113,16 +118,15 @@ static void wifi_print_mac(const char* prefix, const u8* mac)
 // LwIP
 //
 
-void data_send_link(void* ip_data, u32 ip_data_len)
+err_t data_send_link(void* ip_data, u32 ip_data_len)
 {
-    if (!ip_data_len) return;
+    if (!ip_data_len) return ERR_OK;
     if (ip_data_len > DATA_BUF_LEN)
         ip_data_len = DATA_BUF_LEN;
 
     void* dst = data_next_buf();
-    
-    
-    //while (*(vu32*)dst != 0xF00FF00F);
+    if (!dst)
+        return ERR_MEM;
 
     memcpy(dst, ip_data, ip_data_len);
     
@@ -134,14 +138,20 @@ void data_send_link(void* ip_data, u32 ip_data_len)
     msg.pkt_len = ip_data_len;
     fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
     
+    /*for(int i = 0; i < 0x10000; i++)
+    {
+        asm("nop");
+    }*/
+    
     //while (*(vu32*)dst != 0xF00FF00F);
+    return ERR_OK;
 }
 
 err_t ath_init_fn(struct netif *netif)
 {
     ath_netif.output = etharp_output;
     ath_netif.linkoutput = ath_link_output;
-    ath_netif.mtu = 0x570;
+    ath_netif.mtu = IF_MTU_SIZE;
         
     ath_netif.name[0] = 'w';
     ath_netif.name[1] = 'l';
@@ -159,11 +169,9 @@ err_t ath_link_output(struct netif *netif, struct pbuf *p)
     
     //wifi_printlnf("link output %x", p->len);
     
-    data_send_link(p->payload, p->len);
-    
     //hexdump(p->payload,  0x20);
     
-    return ERR_OK;
+    return data_send_link(p->payload, p->len);
 }
 
 void ath_lwip_tick()
@@ -174,8 +182,8 @@ void ath_lwip_tick()
 
 void data_send_to_lwip(void* data, u32 len)
 {
-    if (len > DATA_BUF_LEN)
-        len = DATA_BUF_LEN;
+    if (len > DATA_BUF_LEN-6)
+        len = DATA_BUF_LEN-6;
 
     struct pbuf *p = pbuf_alloc(PBUF_IP, len, PBUF_POOL);
 
@@ -183,17 +191,14 @@ void data_send_to_lwip(void* data, u32 len)
     
     if (!p) {
         *(vu32*)(data - 6) = 0xF00FF00F;
-        DC_FlushRange(data - 6, 4);
         return;
     }
     
     if (len > p->len)
         len = p->len;
     
-    DC_InvalidateRange(data, len);
     memcpy(p->payload, data, len);
     *(vu32*)(data - 6) = 0xF00FF00F;
-    DC_FlushRange(data - 6, 4);
     
     //wifi_printlnf("link in 0x%x bytes", len);
     
@@ -201,7 +206,13 @@ void data_send_to_lwip(void* data, u32 len)
         pbuf_free(p);
     }
     
+    int lock = enterCriticalSection();
+    ath_lwip_tick();
+    leaveCriticalSection(lock);
+    
     //wifi_printlnf("link in done");
+    
+    //ath_lwip_tick();
 }
 
 //
@@ -328,7 +339,7 @@ static void wifi_host_handleMsg(int len, void* user_data)
     }
     else if (cmd == WIFI_IPCINT_PKTDATA)
     {
-        void* data = msg.pkt_data;
+        void* data = memUncached(msg.pkt_data);
         u32 len = msg.pkt_len;
 
         data_send_to_lwip(data, len);
@@ -394,9 +405,9 @@ void wifi_host_tick()
     static int inc_cnt = 0;
     
     timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(2000), wifi_host_tick);
     
-    if (inc_cnt++ == 1) {
+    if (inc_cnt++ == 2) {
         sys_now_inc(1);
         inc_cnt = 0;
     }
@@ -413,7 +424,7 @@ void wifi_host_init()
     wifi_printf("wifi_host_init\n");
     
     // 100ms timer
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(2000), wifi_host_tick);
     
     // Enable FIFO handlers
 	fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_host_handleMsg, 0);

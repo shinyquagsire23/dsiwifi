@@ -223,6 +223,7 @@ int wifi_card_read_func1_block(u32 addr, void* buf, u32 len)
 {
     if(!device_curctx) return -2;
 
+    wifi_ndma_wait();
     wifi_sdio_stop(device_curctx->tmio.controller);
 
     device_curctx->tmio.buffer = buf;
@@ -233,6 +234,7 @@ int wifi_card_read_func1_block(u32 addr, void* buf, u32 len)
     wifi_card_send_command_alt(cmd53_read, (funcnum << 28) | (1 << 27) | (1 << 26) | (addr & 0x1FFFF) << 9 | (blkcnt));
 
     wifi_sdio_stop(device_curctx->tmio.controller);
+    wifi_ndma_wait();
 
     if(device_curctx->tmio.status & 4)
     {
@@ -245,6 +247,8 @@ int wifi_card_read_func1_block(u32 addr, void* buf, u32 len)
 int wifi_card_write_func1_block(u32 addr, void* buf, u32 len)
 {
     if(!device_curctx) return -2;
+    
+    wifi_ndma_wait();
 
     wifi_sdio_stop(device_curctx->tmio.controller);
 
@@ -255,6 +259,7 @@ int wifi_card_write_func1_block(u32 addr, void* buf, u32 len)
     u8 funcnum = 1;
     wifi_card_send_command_alt(cmd53_write, BIT(31) /* write flag */ | (funcnum << 28) | (1 << 27) | (1 << 26) | ((addr & 0x1FFFF) << 9) | (blkcnt));
 
+    wifi_ndma_wait();
     wifi_sdio_stop(device_curctx->tmio.controller);
 
     //wifi_printlnf("asdf");
@@ -602,6 +607,8 @@ void data_handle_pkt(u8* pkt_data, u32 len)
         msg.pkt_data = pkt_data;//ip_data_out_buf;
         msg.pkt_len = len;
         fifoSendDatamsg(FIFO_DSWIFI, sizeof(msg), (u8*)&msg);
+        
+        //while (*(vu32*)(pkt_data-6) != 0xF00FF00F);
         //wifi_printf(""); // HACK force ARM7 to wait for ARM9 to copy packet
 #if 0
         data_send_to_lwip(pkt_data, len);
@@ -672,6 +679,40 @@ void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len)
 static bool mbox_has_lookahead = false;
 static u32 mbox_lookahead = 0;
 
+void* data_next_buf()
+{
+#if 0
+    //for (int j = 0; j < 1000000; j++)
+    while (1)
+    {
+        for (int i = 0; i < (ip_data_out_buf_totlen / DATA_BUF_LEN); i++)
+        {
+            void* dst = memUncached(ip_data_out_buf + (DATA_BUF_LEN * i));
+            if (*(vu32*)dst == 0xF00FF00F)
+            {
+                //wifi_printf("ret %u\n", i);
+                return dst;
+            }
+        }
+        //wifi_printf("arm9 loop...\n");
+    }
+    //return ip_data_out_buf;
+    return NULL;
+#endif
+
+#if 1
+    void* ret = ip_data_out_buf + (DATA_BUF_LEN * ip_data_out_buf_idx);
+
+    //wifi_printf("ret %u\n", ip_data_out_buf_idx);
+
+    ip_data_out_buf_idx = (ip_data_out_buf_idx + 1) % (ip_data_out_buf_totlen / DATA_BUF_LEN);
+    
+    //memset(ret, 0, DATA_BUF_LEN);
+    
+    return ret;
+#endif
+}
+
 u16 wifi_card_mbox0_readpkt(void)
 {
     int lock = enterCriticalSection();
@@ -709,8 +750,11 @@ u16 wifi_card_mbox0_readpkt(void)
     u16 full_len = round_up(len+6, 0x80);
     
     if (ip_data_out_buf && (pkt_type == 2 || pkt_type == 3 || pkt_type == 4 || pkt_type == 5)) {
-        read_buffer = ip_data_out_buf + (ip_data_out_buf_idx * DATA_BUF_LEN);
-        ip_data_out_buf_idx = (ip_data_out_buf_idx + 1) % (ip_data_out_buf_totlen / DATA_BUF_LEN);
+        //read_buffer = ip_data_out_buf + (ip_data_out_buf_idx * DATA_BUF_LEN);
+        //ip_data_out_buf_idx = (ip_data_out_buf_idx + 1) % (ip_data_out_buf_totlen / DATA_BUF_LEN);
+        read_buffer = data_next_buf();
+        
+        //while (*(vu32*)ip_data_out_buf != 0xF00FF00F);
     }
     
     // On the off chance that a packet gets parsed incorrectly (full_len off-by-one, etc)
@@ -1022,7 +1066,7 @@ static void wifi_card_handleMsg(int len, void* user_data)
         
         data_send_pkt_idk(data, len);
         
-        //*(vu32*)data = 0xF00FF00F; // mark packet processed
+        *(vu32*)data = 0xF00FF00F; // mark packet processed
         
         // Craft and send msg
         //msg.cmd = WIFI_IPCINT_PKTSENT;

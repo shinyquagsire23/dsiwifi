@@ -349,11 +349,11 @@ skip_parse:
                 sec_type_enum = AP_OPEN;
             }
 
-            if (ap_pass[0] != 0 && ap_auth_type == AUTH_NONE && sec_type_enum == AP_OPEN)
+            if (ap_pass[0] != 0 && auth_type == AUTH_NONE && sec_type_enum == AP_OPEN)
             {
                 wifi_printf("AP missing RSN??? Using flash vals.\n");
                 sec_type_enum = AP_WPA2;
-                ap_auth_type = AUTH_PSK;
+                auth_type = AUTH_PSK;
                 if (ap_flash_wpa_type == WPATYPE_WPA_TKIP || ap_flash_wpa_type == WPATYPE_WPA_AES)
                 {
                     wifi_printf("WPA is currently unsupported.\n");
@@ -361,13 +361,13 @@ skip_parse:
                 }
                 else if (ap_flash_wpa_type == WPATYPE_WPA2_TKIP)
                 {
-                    ap_group_crypt_type = CRYPT_TKIP;
-                    ap_pair_crypt_type = CRYPT_AES;
+                    group_crypto = CRYPT_TKIP;
+                    pair_crypto = CRYPT_AES;
                 }
                 else if (ap_flash_wpa_type == WPATYPE_WPA2_AES)
                 {
-                    ap_group_crypt_type = CRYPT_AES;
-                    ap_pair_crypt_type = CRYPT_AES;
+                    group_crypto = CRYPT_AES;
+                    pair_crypto = CRYPT_AES;
                 }
                 else
                 {
@@ -377,7 +377,7 @@ skip_parse:
             }
             
             // Definitely WPA2 though, in this case
-            if (pair_crypto == CRYPT_AES && ap_auth_type == AUTH_PSK)
+            if (pair_crypto == CRYPT_AES && auth_type == AUTH_PSK)
             {
                 sec_type_enum = AP_WPA2;
             }
@@ -386,7 +386,7 @@ skip_parse:
             {
                 group_crypto = CRYPT_WEP;
                 pair_crypto = CRYPT_WEP;
-                ap_auth_type = AUTH_NONE;
+                auth_type = AUTH_NONE;
                 wifi_printf("Only shared auth WEP40 is verified...\n");
             }
             
