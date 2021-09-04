@@ -324,6 +324,21 @@ skip_parse:
                 sec_type_enum = AP_OPEN;
             }
             
+            if (ap_pass[0] != 0 && ap_auth_type == AUTH_NONE)
+            {
+                wifi_printf("AP missing RSN??? Trying defaults...\n");
+                sec_type_enum = AP_WPA2;
+                ap_group_crypt_type = CRYPT_TKIP;
+                ap_pair_crypt_type = CRYPT_AES;
+                ap_auth_type = AUTH_PSK;
+            }
+            
+            // Definitely WPA2 though, in this case
+            if (pair_crypto == CRYPT_AES && ap_auth_type == AUTH_PSK)
+            {
+                sec_type_enum = AP_WPA2;
+            }
+            
             ap_security_type = sec_type_enum;
             ap_group_crypt_type = group_crypto;
             ap_pair_crypt_type = pair_crypto;
