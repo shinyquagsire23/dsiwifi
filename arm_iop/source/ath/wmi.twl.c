@@ -336,10 +336,10 @@ skip_parse:
             {
                 sec_type_enum = AP_WEP;
                 ap_wepmode = wep_mode;
-                ap_wep1 = wifi_card_nvram_configs[ap_nvram_idx].wep_key1;
-                ap_wep2 = wifi_card_nvram_configs[ap_nvram_idx].wep_key2;
-                ap_wep3 = wifi_card_nvram_configs[ap_nvram_idx].wep_key3;
-                ap_wep4 = wifi_card_nvram_configs[ap_nvram_idx].wep_key4;
+                ap_wep1 = wifi_card_nvram_configs[ap_nvram_idx-3].wep_key1;
+                ap_wep2 = wifi_card_nvram_configs[ap_nvram_idx-3].wep_key2;
+                ap_wep3 = wifi_card_nvram_configs[ap_nvram_idx-3].wep_key3;
+                ap_wep4 = wifi_card_nvram_configs[ap_nvram_idx-3].wep_key4;
                 ap_pass = ap_wep1;
             }
             
