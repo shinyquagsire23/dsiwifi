@@ -963,8 +963,12 @@ void data_send_wpa_handshake2(const u8* dst_bssid, const u8* src_bssid, u64 repl
     putbe16(data_hdr.keylen_be, 0);
     putbe64(data_hdr.replay_counter_be, replay_cnt);
     
-    // TODO rand()
-    const u8 test_nonce[32] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    // TODO this probably needs a good srand -- maybe use hardware sources?
+    u8 test_nonce[32] = {0};
+    for (int i = 0; i < 32; i++)
+    {
+        test_nonce[i] = rand();
+    }
     
     memcpy(data_hdr.wpa_nonce, test_nonce, 32);
     putbe16(data_hdr.wpa_keydata_len_be, 0x16);
