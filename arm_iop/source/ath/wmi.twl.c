@@ -387,7 +387,7 @@ skip_parse:
                 group_crypto = CRYPT_WEP;
                 pair_crypto = CRYPT_WEP;
                 ap_auth_type = AUTH_NONE;
-                wifi_printf("WEP is currently unsupported.\n");
+                wifi_printf("Only shared auth WEP40 is verified...\n");
             }
             
             if (sec_type_enum == AP_WPA)
@@ -464,6 +464,7 @@ skip_parse:
                 ap_group_crypt_type = CRYPT_WEP;
                 ap_pair_crypt_type = CRYPT_WEP;
                 ap_auth_type = AUTH_NONE;
+                wifi_printf("Only shared auth WEP40 is verified...\n");
             }
 
             memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
@@ -472,13 +473,6 @@ skip_parse:
             wifi_printlnf("WMI_BSSINFO %s (%s)", tmp, wmi_ap_sec_type_str(ap_security_type));
             wifi_printlnf("  BSSID %02x:%02x:%02x:%02x:%02x:%02x", ap_bssid[0], ap_bssid[1], ap_bssid[2], ap_bssid[3], ap_bssid[4], ap_bssid[5]);
             wifi_printlnf("  %x %x %x -- %x %x", ap_group_crypt_type, ap_pair_crypt_type, ap_auth_type, wmi_params->snr, ap_channel);
-            
-            // We don't support WEP
-            if (ap_security_type == AP_WEP)
-            {
-                wifi_printlnf("WEP is currently unsupported...");
-                //continue;
-            }
             
             wmi_set_bss_filter(0,0); // scan for beacons
             break;
@@ -894,6 +888,7 @@ void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc)
     u8 crypt_type = (usage == 1) ? ap_group_crypt_type : CRYPT_AES /* WPA2, AES */;
     u8 crypt_keylen = (crypt_type == CRYPT_TKIP) ? 0x20 : 0x10;
     
+    // Figure out the correct keylens for WEP; WEP40 vs WEP104 vs WEP128(?)
     if (ap_security_type == AP_WEP)
     {
         crypt_type = CRYPT_WEP;
@@ -903,8 +898,6 @@ void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc)
             crypt_keylen = 5;
         else if (ap_wepmode == 0x3 || ap_wepmode == 0x7)
             crypt_keylen = 0x10;
-        
-        wifi_printf("Add key %x %x %x %x\n", idx, crypt_type, usage, crypt_keylen);
     }
 
     struct {
@@ -1294,7 +1287,7 @@ void data_handle_auth(u8* pkt_data, u32 len, const u8* dev_bssid, const u8* ap_b
     
     // TODO: Use bitmasks instead of constants
     // TODO: 0x1382, Group Message (1/2)
-    // TODO: WPA, WEP?
+    // TODO: WPA?
     // If not handled, disconnects and reconnects
     
     if (keyinfo == 0x008A)
