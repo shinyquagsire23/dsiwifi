@@ -14,7 +14,7 @@ typedef struct gtk_keyinfo
     u8 keytype[4];
     u8 keyidx;
     u8 unk;
-    u8 key[0x10];
+    u8 key[0x20];
 } gtk_keyinfo;
 
 typedef struct ptk_keyinfo

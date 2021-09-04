@@ -74,10 +74,10 @@ void wmi_send_pkt(u16 wmi_type, u8 ack_type, const void* data, u16 len);
 
 void wmi_scan();
 void wmi_dbgoff();
-void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key);
+void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc);
 void wmi_tick(void);
 
-void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info);
+void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info, const u8* rsc);
 
 void wmi_disconnect_cmd();
 

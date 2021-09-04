@@ -16,6 +16,7 @@
 #include "wifi_card.h"
 
 #include "dsiwifi_cmds.h"
+#include "utils.h"
 
 #include <nds.h>
 #include <nds/interrupts.h>
@@ -27,6 +28,27 @@ enum ap_security_type_t
     AP_WPA,
     AP_WPA2,
 };
+
+enum ap_cipher_type_t
+{
+    CRYPT_NONE = 1,
+    CRYPT_WEP = 2,
+    CRYPT_TKIP = 3, // WPA, and WPA/WPA2 hotspots
+    CRYPT_AES = 4,
+};
+
+enum ap_auth_type_t
+{
+    AUTH_NONE = 0,
+    AUTH_8021X = 1,
+    AUTH_PSK = 2,
+    AUTH_FT = 3,
+};
+
+#define IEEE_CRYPT_TKIP     (0x000FAC02)
+#define IEEE_CRYPT_AES_CCMP (0x000FAC04)
+
+#define IEEE_AUTH_PSK (0x000FAC02)
 
 static int ap_security_type = AP_OPEN;
 
@@ -44,11 +66,11 @@ static char* ap_name = "";
 static char* ap_pass = "";
 static u8 ap_pmk[0x20];
 static int ap_nvram_idx = 0;
-static u8 ap_group_cipher[4];
-static u8 ap_pairwise_cipher[4];
-static u8 ap_authkey_cipher[4];
 static u16 ap_snr = 0;
 static u16 num_rounds_scanned = 0;
+static u8 ap_group_crypt_type = CRYPT_AES;
+static u8 ap_pair_crypt_type = CRYPT_AES;
+static u8 ap_auth_type = AUTH_PSK;
 
 u16 wmi_idk = 0;
 static bool wmi_bIsReady = false;
@@ -74,6 +96,70 @@ void wmi_delete_bad_ap_cmd();
 void wmi_set_bss_filter(u8 filter, u32 ieMask);
 
 // Pkt handlers
+
+const char* wmi_ap_sec_type_str(int type)
+{
+    switch (type)
+    {
+        case AP_OPEN:
+            return "Open";
+        case AP_WEP:
+            return "WEP";
+        case AP_WPA:
+            return "WPA";
+        case AP_WPA2:
+            return "WPA2-PSK";
+        default:
+            return "Unk";
+    }
+}
+
+const char* wmi_ap_crypt_str(u8 type)
+{
+    switch (type)
+    {
+        case CRYPT_NONE:
+            return "NONE";
+        case CRYPT_WEP:
+            return "WEP";
+        case CRYPT_TKIP:
+            return "TKIP";
+        case CRYPT_AES:
+            return "AES";
+        default:
+            return "Unk";
+    }
+}
+
+const char* wmi_ap_auth_str(u8 type)
+{
+    switch (type)
+    {
+        case AUTH_NONE:
+            return "NONE";
+        case AUTH_8021X:
+            return "802.1X";
+        case AUTH_PSK:
+            return "PSK";
+        case AUTH_FT:
+            return "FT";
+        default:
+            return "Unk";
+    }
+}
+
+int wmi_ieee_to_crypt(u32 ieee)
+{
+    switch (ieee)
+    {
+        case IEEE_CRYPT_TKIP:
+            return CRYPT_TKIP;
+        case IEEE_CRYPT_AES_CCMP:
+            return CRYPT_AES;
+        default:
+            return CRYPT_NONE;
+    }
+}
 
 void wmi_handle_ready_event(u8* pkt_data, u32 len)
 {
@@ -146,55 +232,75 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
     char tmp[32+1];
     memset(tmp, 0, sizeof(tmp));
     
-    char* sec_type = (wmi_frame_hdr->capability & 0x10) ? "WEP" : "None";
-    
     int sec_type_enum = AP_OPEN;
+    int group_crypto = CRYPT_NONE;
+    int pair_crypto = CRYPT_NONE;
+    u8 auth_type = AUTH_NONE;
     
-    bool is_wpa2 = false;
     while (data_left > 0)
     {
         u8 id = read_ptr[0];
         u8 len = read_ptr[1];
         
-        if (id == 0 && len <= 0x20 && read_ptr[2])
+        read_ptr += 2;
+        data_left -= 2;
+        
+        if (id == 0 && len <= 0x20 && read_ptr[0])
         {
-            strncpy(tmp, (char*)&read_ptr[2], len);
+            strncpy(tmp, (char*)&read_ptr[0], len > 32 ? 32 : len);
         }
-        else if (id == 0xDD && !is_wpa2) // RSN
+        else if (id == 0xDD) // RSN - Microsoft/Vendor
         {
-            sec_type = "WPA";
-            sec_type_enum = AP_WPA2;
+            //sec_type_enum = AP_WPA2;
         }
         else if (id == 0x30) // RSN
         {
-            is_wpa2 = true;
             sec_type_enum = AP_WPA2;
 
-            // TODO read pairwise count
-            //u16 version = *(u16*)&read_ptr[2];
-            u8* group_cipher = &read_ptr[4];
-            //u16 pair_cnt = *(u16*)&read_ptr[4+4];
-            u8* pairwise_cipher = &read_ptr[4+4+2];
-            //u16 authkey_cnt = *(u16*)&read_ptr[4+4+2+4];
-            u8* authkey_cipher = &read_ptr[4+4+2+4+2];
+            u16 version = getle16(read_ptr);
             
-            //wifi_printlnf("%08x %08x %08x", *(u32*)group_cipher, *(u32*)pairwise_cipher, *(u32*)authkey_cipher);
+            if (version != 0x0001)
+            {
+                //wifi_printf("AP had bad version 0x%04x\n", version);
+                goto skip_parse;
+            }
             
-            if (authkey_cipher[3] == 1)
-                sec_type = "WPA2-802.1X";
-            else if (authkey_cipher[3] == 2)
-                sec_type = "WPA2-PSK";
-            else
-                sec_type = "WPA2";
+            u32 group_cipher = getbe32(read_ptr+2);
+            u16 read_idx = 2+4;
+            //wifi_printf("g %x\n", group_cipher);
             
-            memcpy(ap_authkey_cipher, authkey_cipher, sizeof(ap_authkey_cipher));
-            memcpy(ap_pairwise_cipher, pairwise_cipher, sizeof(ap_pairwise_cipher));
-            memcpy(ap_group_cipher, group_cipher, sizeof(ap_group_cipher));
+            group_crypto = wmi_ieee_to_crypt(group_cipher);
+            
+            u16 num_pairwise = getle16(read_ptr+read_idx); read_idx+=2;
+            if (num_pairwise > 4) num_pairwise = 4;
+            for (int i = 0; i < num_pairwise; i++)
+            {
+                u32 cipher = getbe32(read_ptr+read_idx+i*4); 
+                //wifi_printf("p %x\n", cipher);
+                pair_crypto = wmi_ieee_to_crypt(cipher);
+                if (pair_crypto == CRYPT_AES) break; // use AES by default if we can
+            }
+            read_idx+=4*num_pairwise;
+            
+            u16 num_authkey = getle16(read_ptr+read_idx); read_idx+=2;
+            if (num_authkey > 4) num_authkey = 4;
+            for (int i = 0; i < num_authkey; i++)
+            {
+                u32 auth = getbe32(read_ptr+read_idx+i*4);
+                //wifi_printf("a%u %x\n", i, auth);
+                auth_type = auth & 0xFF;
+
+                if (auth == IEEE_AUTH_PSK) break;
+            }
         }
-        
-        data_left -= (len + 2);
-        read_ptr += (len + 2);
+
+skip_parse:
+        data_left -= len;
+        read_ptr += len;
     }
+    
+    if (!(wmi_frame_hdr->capability & 0x10))
+        sec_type_enum = AP_OPEN;
     
     for (int i = 0; i < 3; i++)
     {
@@ -212,18 +318,24 @@ void wmi_handle_bss_info(u8* pkt_data, u32 len)
             memcpy(ap_pmk, wifi_card_nvram_configs[ap_nvram_idx].pmk, 0x20);
             ap_snr = wmi_params->snr;
             
+            // If the password is empty, assume open.
             if (ap_pass[0] == 0)
             {
                 sec_type_enum = AP_OPEN;
             }
             
             ap_security_type = sec_type_enum;
+            ap_group_crypt_type = group_crypto;
+            ap_pair_crypt_type = pair_crypto;
+            ap_auth_type = auth_type;
 
             memcpy(ap_bssid, &pkt_data[6], sizeof(ap_bssid));
             ap_found = true;
             
-            wifi_printlnf("WMI_BSSINFO %s (%s) %x %x", tmp, sec_type, wmi_params->snr, ap_channel);
+            wifi_printlnf("WMI_BSSINFO %s (%s)", tmp, wmi_ap_sec_type_str(ap_security_type));
             wifi_printlnf("  BSSID %02x:%02x:%02x:%02x:%02x:%02x", ap_bssid[0], ap_bssid[1], ap_bssid[2], ap_bssid[3], ap_bssid[4], ap_bssid[5]);
+            wifi_printlnf("  G %s P %s A %s", wmi_ap_crypt_str(ap_group_crypt_type), wmi_ap_crypt_str(ap_pair_crypt_type), wmi_ap_auth_str(ap_auth_type));
+            wifi_printlnf("  %x %x %x -- %x %x", ap_group_crypt_type, ap_pair_crypt_type, ap_auth_type, wmi_params->snr, ap_channel);
             
             wmi_set_bss_filter(0,0); // scan for beacons
             break;
@@ -334,7 +446,7 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
             
             if (ap_security_type == AP_OPEN)
             {
-                wmi_post_handshake(NULL, NULL);
+                wmi_post_handshake(NULL, NULL, NULL);
             }
             
             break;
@@ -367,6 +479,11 @@ void wmi_handle_pkt(u16 pkt_cmd, u8* pkt_data, u32 len, u32 ack_len)
                 wmi_scan();
             }
             
+            break;
+        }
+        case WMI_TKIP_MICERR_EVENT:
+        {
+            wifi_printlnf("WMI_TKIP_MICERR_EVENT %02x %02x", pkt_data[0], pkt_data[1]);
             break;
         }
         case WMI_TARGET_ERROR_REPORT_EVENT:
@@ -490,7 +607,7 @@ void wmi_connect_cmd()
             u16 channel;
             u8 bssid[6];
             u32 ctrl_flags;
-        }  wmi_params = { 1, 1, 5, 4, 0, 4, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
+        }  wmi_params = { 1, 1, 5, ap_pair_crypt_type, 0, ap_group_crypt_type, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
         
         strcpy(wmi_params.ssid, ap_name);
         memcpy(wmi_params.bssid, ap_bssid, 6);
@@ -512,7 +629,7 @@ void wmi_connect_cmd()
             u16 channel;
             u8 bssid[6];
             u32 ctrl_flags;
-        }  wmi_params = { 1, 1, 5, 4, 0, 4, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
+        }  wmi_params = { 1, 1, 5, ap_pair_crypt_type, 0, ap_group_crypt_type, 0, strlen(ap_name), {0}, ap_channel, {0}, 0 }; // WPA2
         
         strcpy(wmi_params.ssid, ap_name);
         memcpy(wmi_params.bssid, ap_bssid, 6);
@@ -612,8 +729,11 @@ void wmi_dbgoff()
     wmi_send_pkt(WMI_WMIX_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
 }
 
-void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key)
+void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key, const u8* rsc)
 {
+    u8 crypt_type = (usage == 1) ? ap_group_crypt_type : 0x4 /* WPA2, AES */;
+    u8 crypt_keylen = (crypt_type == CRYPT_TKIP) ? 0x20 : 0x10;
+    
     struct {
         u8 keyIndex;
         u8 keyType;
@@ -622,9 +742,16 @@ void wmi_add_cipher_key(u8 idx, u8 usage, const u8* key)
         u8 keyRSC[8];
         u8 key[32];
         u8 key_op_ctrl;
-    } wmi_params = { idx, 0x4 /* WPA2, AES */, usage, 0x10, {0}, {0}, 3 };
+    } wmi_params = { idx, crypt_type, usage, crypt_keylen, {0}, {0}, 3 };
     
     memcpy(wmi_params.key, key, 0x10);
+    if (crypt_keylen > 0x10)
+    {
+        memcpy(wmi_params.key+0x10, key+0x18, 0x8);
+        memcpy(wmi_params.key+0x18, key+0x10, 0x8);
+    }
+    if (rsc)
+        memcpy(wmi_params.keyRSC, rsc, 8);
     
     wmi_send_pkt(WMI_ADD_CIPHER_KEY_CMD, MBOXPKT_REQACK, &wmi_params, sizeof(wmi_params));
 }
@@ -764,7 +891,7 @@ void wmi_tick_display()
 
 }
 
-void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)
+void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info, const u8* rsc)
 {
     u8 tmp8 = 1;
     wmi_send_pkt(WMI_SYNCHRONIZE_CMD, MBOXPKT_REQACK, &tmp8, sizeof(tmp8)); // 0x0?
@@ -775,9 +902,9 @@ void wmi_post_handshake(const u8* tk, const gtk_keyinfo* gtk_info)
     
     if (ap_security_type == AP_WPA2)
     {
-        wmi_add_cipher_key(0, 0, tk);
+        wmi_add_cipher_key(0, 0, tk, NULL);
             
-        wmi_add_cipher_key(gtk_info->keyidx, 1, gtk_info->key);
+        wmi_add_cipher_key(gtk_info->keyidx, 1, gtk_info->key, rsc);
         wifi_printlnf("Added GTK %x", gtk_info->keyidx);
     }
     
@@ -821,7 +948,7 @@ void data_send_wpa_handshake2(const u8* dst_bssid, const u8* src_bssid, u64 repl
         u8 wpa_keydata[0x16];
         u8 end[];
     } data_hdr = {{0x00, 0x1C}, {0}, {0}, {0}, {0xAA,0xAA,0x03,0,0,0, 0x88, 0x8E}, 1, 3, {0}, 2, {0}, {0,0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
-                  {0x30, 0x14, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x04, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x04, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x02, 0x00, 0x00}};
+                  {0x30, 0x14, 0x01, 0x00, 0x00, 0x0f, 0xac, ap_group_crypt_type == CRYPT_AES ? 0x04 : 0x02, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x04, 0x01, 0x00, 0x00, 0x0f, 0xac, 0x02, 0x00, 0x00}};
 
     u16 total_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.idk;
     u16 data_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.snap_hdr;
@@ -909,6 +1036,55 @@ void data_send_wpa_handshake4(const u8* dst_bssid, const u8* src_bssid, u64 repl
     has_sent_hs4 = true;
 }
 
+void data_send_wpa_gtkrenew(const u8* dst_bssid, const u8* src_bssid, u64 replay_cnt)
+{
+    u8 mic_out[16];
+    struct __attribute__((packed)) {
+        u8 idk[2];
+        u8 dst_bssid[6]; // AP MAC
+        u8 src_bssid[6]; // 3DS MAC
+        u8 data_len_be[2];
+        u8 snap_hdr[8];
+
+        u8 version;
+        u8 type;
+        u8 len_be[2];
+        u8 keydesc_type;
+        u8 keyinfo_be[2];
+        u8 keylen_be[2];
+        u8 replay_counter_be[8];
+        u8 wpa_nonce[32];
+        u8 wpa_iv[16];
+        u8 wpa_rsc[8];
+        u8 wpa_key_id[8];
+        u8 wpa_key_mic[16];
+        u8 wpa_keydata_len_be[2];
+        u8 end[];
+    } data_hdr = {{0x00, 0x1C}, {0}, {0}, {0}, {0xAA,0xAA,0x03,0,0,0, 0x88, 0x8E}, 1, 3, {0}, 2, {0}, {0,0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}};
+
+    u16 total_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.idk;
+    u16 data_len = (intptr_t)data_hdr.end - (intptr_t)data_hdr.snap_hdr;
+    u16 auth_len = (intptr_t)data_hdr.end - (intptr_t)&data_hdr.keydesc_type;
+
+    memcpy(data_hdr.dst_bssid, dst_bssid, 6);
+    memcpy(data_hdr.src_bssid, src_bssid, 6);
+
+    putbe16(data_hdr.data_len_be, data_len);
+    putbe16(data_hdr.len_be, auth_len);
+    putbe16(data_hdr.keyinfo_be, 0x0302);
+    putbe16(data_hdr.keylen_be, 0);
+    putbe64(data_hdr.replay_counter_be, replay_cnt);
+    
+    putbe16(data_hdr.wpa_keydata_len_be, 0);
+
+    wpa_calc_mic(device_ptk.kck, (u8*)&data_hdr.version, auth_len+4, mic_out);
+    memcpy(data_hdr.wpa_key_mic, mic_out, 16);
+    
+    data_send_pkt((u8*)&data_hdr, total_len);
+    
+    has_sent_hs4 = true;
+}
+
 // Send a raw Ethernet ARP+SNAP
 void data_send_link(void* ip_data, u32 ip_data_len)
 {
@@ -966,18 +1142,18 @@ void data_handle_auth(u8* pkt_data, u32 len, const u8* dev_bssid, const u8* ap_b
         
         // Decrypt GTK and send AR6014 our generated encryption keys
         wpa_decrypt_gtk(device_ptk.kek, auth_hdr->body, keydata_len, &device_gtk_keyinfo);
-        wmi_post_handshake(device_ptk.tk, &device_gtk_keyinfo);
+        wmi_post_handshake(device_ptk.tk, &device_gtk_keyinfo, auth_hdr->wpa_rsc);
     }
     else if (keyinfo == 0x1382)
     {
         wifi_printlnf("Group message:");
         
         // Send our OK before we actually load keys
-        data_send_wpa_handshake4(ap_bssid, dev_bssid, replay);
+        data_send_wpa_gtkrenew(ap_bssid, dev_bssid, replay);
         
         // Decrypt GTK and send AR6014 our generated encryption keys
         wpa_decrypt_gtk(device_ptk.kek, auth_hdr->body, keydata_len, &device_gtk_keyinfo);
-        wmi_post_handshake(device_ptk.tk, &device_gtk_keyinfo);
+        wmi_post_handshake(device_ptk.tk, &device_gtk_keyinfo, auth_hdr->wpa_rsc);
     }
     else
     {

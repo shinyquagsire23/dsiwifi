@@ -90,7 +90,7 @@ void wpa_calc_pmk(const char* ssid, const char* pass, u8* pmk)
 void wpa_decrypt_gtk(const u8* kek, const u8* data, u32 data_len, gtk_keyinfo* out)
 {
     mbedtls_nist_kw_context kw_ctx;
-    uint8_t gtk_dec[0x40];
+    uint8_t gtk_dec[0x200];
     size_t decrypted_length;
     
 
@@ -103,7 +103,7 @@ void wpa_decrypt_gtk(const u8* kek, const u8* data, u32 data_len, gtk_keyinfo* o
     mbedtls_nist_kw_unwrap(&kw_ctx, MBEDTLS_KW_MODE_KW, 
                            data, data_len,
                            gtk_dec, &decrypted_length,
-                           0x40);
+                           0x200);
 
     mbedtls_nist_kw_free(&kw_ctx);
     
@@ -119,9 +119,9 @@ void wpa_decrypt_gtk(const u8* kek, const u8* data, u32 data_len, gtk_keyinfo* o
         
         const u8 expected_keytype[4] = {0x00, 0x0f, 0xAC, 0x01};
         
-        if (ent_type == 0xDD && !memcmp(&gtk_dec[i], expected_keytype, 4))
+        if (ent_type == 0xDD && !memcmp(&gtk_dec[i], expected_keytype, 4) && (ent_size == 0x16 || ent_size == 0x26))
         {
-            memcpy(out, &gtk_dec[i], sizeof(gtk_keyinfo));
+            memcpy(out, &gtk_dec[i], ent_size);
         }
         i += ent_size;
     }
