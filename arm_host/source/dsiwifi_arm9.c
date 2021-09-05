@@ -242,3 +242,7 @@ void DSiWifi_SetReconnectHandler(WifiReconnectHandler handler)
     DSiWifi_pfnReconnectHandler = handler;
 }
 
+void DSiWifi_Shutdown(void)
+{
+    
+}

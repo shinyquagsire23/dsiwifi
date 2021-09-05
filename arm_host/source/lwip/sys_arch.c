@@ -102,7 +102,10 @@ err_t __attribute__((weak)) sys_sem_new(sys_sem_t *sem, u8_t count)
 void __attribute__((weak)) sys_sem_signal(sys_sem_t *sem)
 {
     //wifi_printf("sem signal %p...\n", sem);
-    while (*sem != 0xFFFFFFFF);
+    //while (*sem != 0xFFFFFFFF)
+    {
+        //wifi_printf("sem signal %p...\n", sem);
+    }
     //wifi_printf("sem signal %p done\n", sem);
     *sem = SEM_SIGNAL;
 }
@@ -112,7 +115,17 @@ u32_t __attribute__((weak)) sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
     //wifi_printf("sem wait %p...\n", sem);
     if (!timeout)
     {
-        while (*sem != SEM_SIGNAL);
+        //while (*sem != SEM_SIGNAL);
+        timeout = 1000;
+        while (timeout != 0)
+        {
+            if (*sem == SEM_SIGNAL) break;
+            sys_msleep(1);
+            timeout--;
+        }
+        
+        if (*sem != SEM_SIGNAL)
+            return SYS_ARCH_TIMEOUT;
     }
     else
     {
@@ -154,7 +167,11 @@ void __attribute__((weak)) sys_msleep(u32_t ms)
     // edge case, overflow
     if (val > target) return;
     
-    while (val < target) ;
+    // Don't do this in an IRQ
+    if ((getCPSR() & 0x1F) == 0x1F)
+    {
+        while (val < target) ;
+    }
 }
 
 err_t __attribute__((weak)) sys_mbox_new(sys_mbox_t *mbox, int size)

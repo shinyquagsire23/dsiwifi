@@ -208,9 +208,9 @@ void data_send_to_lwip(void* data, u32 len)
     }
     
     // ~Hopefully get a fast ACK by doing this
-    int lock = enterCriticalSection();
-    ath_lwip_tick();
-    leaveCriticalSection(lock);
+    //int lock = enterCriticalSection();
+    //ath_lwip_tick();
+    //leaveCriticalSection(lock);
     
     //wifi_printlnf("link in done");
     
@@ -410,6 +410,16 @@ void wifi_host_tick()
         sys_now_inc(1);
         inc_cnt = 0;
     }
+
+    // For debugging weird hangs
+#if 0
+    static int sec_cnt = 0;
+    static int sec_num = 0;
+    if (sec_cnt++ == 1000) {
+        wifi_printf("tick %u\n", sec_num++);
+        sec_cnt = 0;
+    }
+#endif
     
     if (host_bLwipInitted)
     {

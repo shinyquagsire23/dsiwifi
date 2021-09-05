@@ -1682,6 +1682,7 @@ lwip_netconn_do_writemore(struct netconn *conn  WRITE_DELAYED_PARAM)
     return ERR_OK;
   }
   
+  // Offset is greater than confirmed written, wait for confirmation before writing more
   if (conn->current_msg->msg.w.confirmed < conn->current_msg->msg.w.offset) {
     return ERR_MEM;
   }

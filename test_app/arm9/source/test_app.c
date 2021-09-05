@@ -16,6 +16,9 @@
 int lSocket;
 struct sockaddr_in sLocalAddr;
 
+void appwifi_echoserver_tick(void);
+bool is_connected = false;
+
 void appwifi_log(const char* s)
 {
     iprintf("%s", s);
@@ -24,18 +27,21 @@ void appwifi_log(const char* s)
 void appwifi_connect(void)
 {
     rpc_init();
+    appwifi_echoserver();
+    is_connected = true;
 }
 
 void appwifi_reconnect(void)
 {
     rpc_deinit();
     rpc_init();
+    is_connected = true;
 }
 
 void appwifi_echoserver(void)
 {
     lSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (lSocket < 0) goto fail;
+    if (lSocket < 0) goto fail_socket;
 
     memset((char *)&sLocalAddr, 0, sizeof(sLocalAddr));
     sLocalAddr.sin_family = AF_INET;
@@ -45,18 +51,29 @@ void appwifi_echoserver(void)
     
     if (bind(lSocket, (struct sockaddr *)&sLocalAddr, sizeof(sLocalAddr)) < 0) {
         close(lSocket);
-        goto fail;
+        goto fail_bind;
     }
 
     if ( listen(lSocket, 20) != 0 ){
         close(lSocket);
-        goto fail;
+        goto fail_listen;
     }
     
     return;
 
-fail:
-    iprintf("not sure what happened\n");
+fail_socket:
+    iprintf("socket failed\n");
+    goto loop_forever;
+
+fail_bind:
+    iprintf("bind failed\n");
+    goto loop_forever;
+
+fail_listen:
+    iprintf("listen failed\n");
+    goto loop_forever;
+
+loop_forever:
     while(1) {
         swiWaitForVBlank();
     }
@@ -103,8 +120,9 @@ int main(void) {
     if (!fatInitDefault()) {
         iprintf("Failed to init SD card!\nRPC may not work fully...\n");
     }
-
-    appwifi_echoserver();
+    
+    //while (!is_connected){}
+    iprintf("Starting echo server...\n");    
 
     while(1) {
         appwifi_echoserver_tick();
