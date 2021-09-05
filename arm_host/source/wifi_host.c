@@ -51,6 +51,7 @@ static ip_addr_t gw_addr = {0}, netmask = {0};
 void ath_lwip_tick();
 err_t ath_link_output(struct netif *netif, struct pbuf *p);
 
+static int idk_hack = 0;
 
 void data_init_bufs()
 {
@@ -406,9 +407,9 @@ void wifi_host_tick()
     static int inc_cnt = 0;
     
     timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(2000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
     
-    if (inc_cnt++ == 2) {
+    if (inc_cnt++ == 1) {
         sys_now_inc(1);
         inc_cnt = 0;
     }
@@ -425,7 +426,7 @@ void wifi_host_init()
     wifi_printf("wifi_host_init\n");
     
     // 100ms timer
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(2000), wifi_host_tick);
+    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
     
     // Enable FIFO handlers
 	fifoSetDatamsgHandler(FIFO_DSWIFI, wifi_host_handleMsg, 0);

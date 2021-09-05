@@ -16,9 +16,9 @@ GAME_ICON :=
 NITRO_FILES :=
 
 # These set the information text in the nds file
-#GAME_TITLE     := My Wonderful Homebrew
-#GAME_SUBTITLE1 := built with devkitARM
-#GAME_SUBTITLE2 := http://devitpro.org
+GAME_TITLE     := DSi WiFi Test App
+GAME_SUBTITLE1 := Connection test
+GAME_SUBTITLE2 := and benchmarking
 
 include $(DEVKITARM)/ds_rules
 
