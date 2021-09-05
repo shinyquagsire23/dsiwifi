@@ -412,14 +412,24 @@ void wifi_host_tick()
     }
 
     // For debugging weird hangs
-#if 0
     static int sec_cnt = 0;
-    static int sec_num = 0;
+    //static int sec_num = 0;
     if (sec_cnt++ == 1000) {
-        wifi_printf("tick %u\n", sec_num++);
+        //wifi_printf("tick %u\n", sec_num++);
         sec_cnt = 0;
+        
+        // Sometimes DHCP can have some trouble enumerating.
+        // Since we *really* need an IP address, just keep prodding every so often
+        // if we don't get one quickly.
+        if (host_bLwipInitted && ath_netif.ip_addr.addr == 0xFFFFFFFF || ath_netif.ip_addr.addr == 0x0)
+        {
+            if (DSiWifi_pfnReconnectHandler)
+                DSiWifi_pfnReconnectHandler();
+
+            dhcp_start(&ath_netif);
+            host_bNeedsDHCPRenew = false;
+        }
     }
-#endif
     
     if (host_bLwipInitted)
     {
