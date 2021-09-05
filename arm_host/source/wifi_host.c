@@ -406,9 +406,6 @@ void wifi_host_tick()
 {
     static int inc_cnt = 0;
     
-    timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000), wifi_host_tick);
-    
     if (inc_cnt++ == 1) {
         sys_now_inc(1);
         inc_cnt = 0;
