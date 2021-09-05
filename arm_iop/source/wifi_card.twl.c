@@ -68,7 +68,7 @@ static u32 ip_data_out_buf_totlen = 0;
 #define DATA_BUF_LEN (0x600)
 
 // Uncomment to send all data bytewise, helpful for debugging.
-//#define SDIO_NO_BLOCKRW
+//#define SDIO_NO_BLOCKRW // MelonDS needs this uncommented... hangs on wifi_ndma_wait after write
 
 #define WRITE_FOUT_1  0x72
 #define READ_FOUT_1   0x73
@@ -715,7 +715,6 @@ void* data_next_buf()
 
 u16 wifi_card_mbox0_readpkt(void)
 {
-    int lock = enterCriticalSection();
     //memset(mbox_buffer, 0, MBOX_TMPBUF_SIZE);
     
     // Try and wait for mailbox data to arrive
@@ -802,7 +801,7 @@ u16 wifi_card_mbox0_readpkt(void)
     wifi_card_read_func1_block(send_addr, read_buffer, full_len);
 #endif
 
-    if (!actual_len) return 0;
+    if (!actual_len) { return 0; }
     
     // Short packet? Shouldn't happen.
     if (actual_len < 6) {
@@ -870,7 +869,6 @@ u16 wifi_card_mbox0_readpkt(void)
         //wifi_printlnf("%02x %02x %02x %02x %02x %02x %02x %02x", read_buffer[8+0], read_buffer[8+1], read_buffer[8+2], read_buffer[8+3], read_buffer[8+4], read_buffer[8+5], read_buffer[8+6], read_buffer[8+7]);
     }
 
-    leaveCriticalSection(lock);
     
     return len;
 }
@@ -1195,15 +1193,11 @@ void wifi_card_send_connect()
 void wifi_card_tick(void)
 {
     if (!wifi_card_bInitted) return;
-   // wifi_printlnf("tick a");
 
     //wifi_card_process_pkts();
     
     wmi_tick();
 
-    timerStop(3);
-    timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000 / SDIO_TICK_INTERVAL_MS), wifi_card_tick);
-    
     //wifi_printlnf("tick end");
 }
 
@@ -1535,8 +1529,7 @@ skip_opcond:
     // Enable IRQs
     irqSetAUX(IRQ_WIFI_SDIO_CARDIRQ, wifi_card_irq);
     irqEnableAUX(IRQ_WIFI_SDIO_CARDIRQ);
-    wifi_sdio_enable_cardirq(REG_SDIO_BASE, true);
-    
+    wifi_sdio_enable_cardirq(REG_SDIO_BASE, true); // MelonDS seems to have trouble with IRQs? Comment out for MelonDS.
     
     wifi_card_write_func1_u32(F1_INT_STATUS_ENABLE, 0x010300D1); // INT_STATUS_ENABLE (or 0x1?)
     wifi_card_write_func0_u8(0x4, 0x3); // CCCR irq_enable, master+func1
@@ -1544,9 +1537,10 @@ skip_opcond:
     // 100ms timer
     timerStart(3, ClockDivider_1024, TIMER_FREQ_1024(1000 / SDIO_TICK_INTERVAL_MS), wifi_card_tick); //((u64)TIMER_CLOCK * SDIO_TICK_INTERVAL_MS) / 1000
 
+    wifi_printlnf("wait ready");
     while (!wmi_is_ready())
     {
-        //wifi_card_mbox0_readpkt();
+        //wifi_card_mbox0_readpkt(); // MelonDS seems to have trouble with IRQs? Uncomment for MelonDS.
     }
 
     wifi_printlnf("%s fully initialized!", wifi_card_get_chip_str());

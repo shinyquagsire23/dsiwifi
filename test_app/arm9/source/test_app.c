@@ -125,9 +125,11 @@ int main(void) {
     iprintf("Starting echo server...\n");    
 
     while(1) {
-        appwifi_echoserver_tick();
-
         u32 addr = DSiWifi_GetIP();
+        
+        if (addr != 0 && addr != 0xFFFFFFFF)
+            appwifi_echoserver_tick();
+        
         u8 addr_bytes[4];
         
         memcpy(addr_bytes, &addr, 4);
