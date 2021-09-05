@@ -333,7 +333,11 @@ recv_tcp(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   
   conn->current_msg->msg.w.confirmed += len;
   
-  //wifi_printf("recv_tcp %x\n", len);
+  // Hack: Really, we should be returning len 0, but this mbox thing groups packets
+  // together and the 0 return gets lost...?
+  if (!len) {
+    conn->flags |= NETCONN_FIN_RX_PENDING;
+  }
 
   if (sys_mbox_trypost(&conn->recvmbox, msg) != ERR_OK) {
     /* don't deallocate p: it is presented to us later again from tcp_fasttmr! */
@@ -1673,7 +1677,7 @@ lwip_netconn_do_writemore(struct netconn *conn  WRITE_DELAYED_PARAM)
     conn->current_msg = NULL;
     conn->state = NETCONN_NONE;
 #if LWIP_TCPIP_CORE_LOCKING
-    //if (delayed)
+    if (delayed)
 #endif
     {
       sys_sem_signal(op_completed_sem);
@@ -1783,7 +1787,7 @@ err_mem:
       err_t out_err;
       if ((conn->current_msg->msg.w.offset == conn->current_msg->msg.w.len) || dontblock) {
         /* return sent length (caller reads length from msg.w.offset) */
-        write_finished = 0;
+        write_finished = 0;//dontblock;
       }
       out_err = tcp_output(conn->pcb.tcp);
       if (out_err == ERR_RTE) {
@@ -1811,7 +1815,7 @@ err_mem:
         /* non-blocking write is done on ERR_MEM, set error according
            to partial write or not */
         err = (conn->current_msg->msg.w.offset == 0) ? ERR_WOULDBLOCK : ERR_OK;
-        write_finished = 0;//(conn->current_msg->msg.w.offset == 0) ? 1 : 0;
+        write_finished = 0;//(conn->current_msg->msg.w.offset == 0) ? 1 : 1;
       }
     } else {
       /* On errors != ERR_MEM, we don't try writing any more but return

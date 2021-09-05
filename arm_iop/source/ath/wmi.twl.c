@@ -325,8 +325,8 @@ skip_parse:
         u8 ssid_len = wifi_card_nvram_configs[i].ssid_len;
         if (ssid_len > 0x20)
             ssid_len = 0x20;
-        memcpy(tmp_2, wifi_card_nvram_configs[i].ssid, ssid_len);
-        tmp_2[ssid_len] = 0;
+        memset(tmp_2, 0, sizeof(tmp_2));
+        strncpy(tmp_2, wifi_card_nvram_configs[i].ssid, ssid_len);
 
         //TODO if an AP fails too many times, ignore it.
         if (!strcmp(tmp, tmp_2) && wmi_params->snr > ap_snr)
@@ -434,8 +434,8 @@ skip_parse:
         if (wifi_card_nvram_wep_configs[i].status == 0xFF) continue;
         if (!wifi_card_nvram_wep_configs[i].slot_idx) continue;
 
-        memcpy(tmp_2, wifi_card_nvram_wep_configs[i].ssid, 0x20);
-        tmp_2[0x20] = 0;
+        memset(tmp_2, 0, sizeof(tmp_2));
+        strncpy(tmp_2, wifi_card_nvram_wep_configs[i].ssid, 0x20);
 
         //TODO if an AP fails too many times, ignore it.
         if (!strcmp(tmp, tmp_2) && wmi_params->snr > ap_snr)

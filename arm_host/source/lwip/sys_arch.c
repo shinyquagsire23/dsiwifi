@@ -101,13 +101,33 @@ err_t __attribute__((weak)) sys_sem_new(sys_sem_t *sem, u8_t count)
 
 void __attribute__((weak)) sys_sem_signal(sys_sem_t *sem)
 {
+    //wifi_printf("sem signal %p...\n", sem);
     while (*sem != 0xFFFFFFFF);
+    //wifi_printf("sem signal %p done\n", sem);
     *sem = SEM_SIGNAL;
 }
 
 u32_t __attribute__((weak)) sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 {
-    while (*sem != SEM_SIGNAL);
+    //wifi_printf("sem wait %p...\n", sem);
+    if (!timeout)
+    {
+        while (*sem != SEM_SIGNAL);
+    }
+    else
+    {
+        while (timeout != 0)
+        {
+            if (*sem == SEM_SIGNAL) break;
+            sys_msleep(1);
+            timeout--;
+        }
+
+        if (*sem != SEM_SIGNAL)
+            return SYS_ARCH_TIMEOUT;
+    }
+
+    //wifi_printf("sem got %p\n", sem);
     *sem = 0xFFFFFFFF;
     return 1;
 }

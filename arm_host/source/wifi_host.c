@@ -71,7 +71,7 @@ void data_init_bufs()
 
 void* data_next_buf()
 {
-#if 1
+#if 0
     //for (int j = 0; j < 1000000; j++)
     //while (1)
     for (int j = 0; j < 100; j++)
@@ -91,7 +91,7 @@ void* data_next_buf()
     return NULL;
 #endif
 
-#if 0
+#if 1
     void* ret = memUncached(ip_data_buf + (DATA_BUF_LEN * ip_data_buf_idx));
 
     //wifi_printf("ret %u\n", ip_data_buf_idx);
@@ -206,6 +206,7 @@ void data_send_to_lwip(void* data, u32 len)
         pbuf_free(p);
     }
     
+    // ~Hopefully get a fast ACK by doing this
     int lock = enterCriticalSection();
     ath_lwip_tick();
     leaveCriticalSection(lock);
