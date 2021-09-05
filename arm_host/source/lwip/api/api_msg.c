@@ -326,18 +326,15 @@ recv_tcp(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   if (p != NULL) {
     msg = p;
     len = p->tot_len;
+    // Hack? Why isn't this checked...
+    if (p->flags & TF_FIN)
+        conn->flags |= NETCONN_FIN_RX_PENDING;
   } else {
     msg = LWIP_CONST_CAST(void *, &netconn_closed);
     len = 0;
   }
   
   conn->current_msg->msg.w.confirmed += len;
-  
-  // Hack: Really, we should be returning len 0, but this mbox thing groups packets
-  // together and the 0 return gets lost...?
-  if (!len) {
-    conn->flags |= NETCONN_FIN_RX_PENDING;
-  }
 
   if (sys_mbox_trypost(&conn->recvmbox, msg) != ERR_OK) {
     /* don't deallocate p: it is presented to us later again from tcp_fasttmr! */
