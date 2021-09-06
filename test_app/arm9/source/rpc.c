@@ -18,6 +18,7 @@
 #define RPC_CMD_NOP              (0)
 #define RPC_CMD_CREATEFILE       (1)
 #define RPC_CMD_WRITEFILE        (2)
+#define RPC_CMD_BOOTFILE         (3)         
 #define RPC_CMD_REBOOT           (15)
 #define RPC_CMD_MAX              (16)
 
@@ -34,8 +35,14 @@ static bool size_read = false;
 static u32 payload_read_left = 0;
 static u32 payload_size = 0;
 static u32 packet_recvd = 0;
+static bool rpc_processing_buffer = false;
 
+static struct tcp_pcb *rpc_tpcb;
 static int rpc_timeout = 0;
+
+static bool reboot_requested = false;
+
+extern void unlaunchRomBoot(char* path);
 
 void rpc_reset()
 {
@@ -45,6 +52,7 @@ void rpc_reset()
     packet_recvd = 0;
     magic_read = false;
     size_read = false;
+    rpc_processing_buffer = false;
 }
 
 void rpc_proc_buffer(struct tcp_pcb *tpcb)
@@ -52,6 +60,8 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
     u8* payload_read = rpc_read_buffer + 8;
     
     rpc_reset();
+    
+    bool send_resp = false;
     
     // Read and verify command
     u32 cmd = *(u32*)payload_read; payload_read += sizeof(u32);
@@ -72,11 +82,14 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
         if (f) {
             fclose(f);
         }
+        send_resp = true;
     }
     else if (cmd == RPC_CMD_WRITEFILE) {
         char* fpath = (char*)payload_read; payload_read += 0x40;
         u32 offs = *(u32*)payload_read; payload_read += sizeof(u32);
         u32 len = *(u32*)payload_read; payload_read += sizeof(u32);
+        
+        //wifi_printlnf("RPC_WriteFile: `%s` %x %x", fpath, offs, len);
         
         // WriteFile
         FILE* f = fopen(fpath,"r+");
@@ -86,19 +99,28 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
             fclose(f);
         }
         
-        u8* payload_write = rpc_recv_buf;
-        strcpy((char*)payload_write, "SLTR"); payload_write += 4;
-        *payload_write = cmd; payload_write++;
+        send_resp = true;
+    }
+    else if (cmd == RPC_CMD_BOOTFILE)
+    {
+        char* fpath = (char*)payload_read; payload_read += 0x40;
+        wifi_printlnf("RPC_BootFile: `%s`", fpath);
         
-        u32 payload_write_size = payload_write - rpc_recv_buf;
-        tcp_write(tpcb, rpc_recv_buf, payload_write_size, 1);
+        unlaunchRomBoot(fpath);
+        send_resp = true;
     }
     else if (cmd == RPC_CMD_REBOOT) {
-        while (1) {
-	        fifoSendValue32(FIFO_USER_01, 1);
-	    }
+        //wifi_printlnf("RPC_Reboot");
+        reboot_requested = true;
+        send_resp = true;
     }
     else {
+        send_resp = true;
+        
+    }
+    
+    if (send_resp)
+    {
         u8* payload_write = rpc_recv_buf;
         strcpy((char*)payload_write, "SLTR"); payload_write += 4;
         *payload_write = cmd; payload_write++;
@@ -109,17 +131,15 @@ void rpc_proc_buffer(struct tcp_pcb *tpcb)
     
     //wifi_printlnf("rpc_recv cmd %02x", cmd);
     
-    
-    
-    //
-    
-    tpcb->flags |= TF_ACK_NOW;
-    //
-    //tcp_output(tpcb);
+    //tpcb->flags |= TF_ACK_NOW;
 }
 
 err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
+    if (rpc_processing_buffer) return ERR_MEM;
+
+    rpc_tpcb = tpcb;
+
     if (p == NULL && err == ERR_OK)
     {
         if (payload_read_left)
@@ -194,11 +214,15 @@ err_t rpc_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
         packet_left -= to_copy;
         
         if (!payload_read_left)
-            rpc_proc_buffer(tpcb);
+        {
+            rpc_processing_buffer = true;
+            break;
+        }
+            //rpc_proc_buffer(tpcb);
     }
     
     // Ack the packet
-    tcp_recved(tpcb, p->tot_len);
+    tcp_recved(tpcb, p->tot_len - packet_left);
     
     // Free received buffer
     pbuf_free(p);
@@ -286,7 +310,19 @@ void rpc_deinit(void)
 
 void rpc_tick(void)
 {
-
+    int lock = enterCriticalSection();
+    if (rpc_processing_buffer)
+    {
+        rpc_proc_buffer(rpc_tpcb);
+    }
+    leaveCriticalSection(lock);
+    
+    if (reboot_requested)
+    {
+        while (1) {
+	        fifoSendValue32(FIFO_USER_01, 1);
+	    }
+	}
 }
 
 

@@ -28,6 +28,7 @@ PORT = 8336
 RPC_CMD_NOP               = (0)
 RPC_CMD_CREATEFILE        = (1)
 RPC_CMD_WRITEFILE         = (2)
+RPC_CMD_BOOTFILE          = (3)
 RPC_CMD_REBOOT            = (15)
 RPC_CMD_MAX               = (16)
 
@@ -65,6 +66,17 @@ def rpc_simple_cmd(cmd_id):
         s.connect((HOST, PORT))
 
         rpc_send_cmd(s, cmd_id)
+
+        s.close()
+
+def rpc_simple_cmd_ack(cmd_id):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+
+        rpc_send_cmd(s, cmd_id)
+        
+        s.settimeout(60) # TODO why doesn't LwIP tell me the TCP window is full?
+        data = s.recv(8)
 
         s.close()
 
@@ -151,6 +163,8 @@ def benchmark():
 def create_remote_file(fpath, trunc):
     ms_start = millis()
     
+    fpath = fpath.replace("sdmc:/", "sd:/")
+    
     sent_bytes = 0
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -162,7 +176,33 @@ def create_remote_file(fpath, trunc):
         
         s.settimeout(10)
         s.sendall(payload)
-        s.settimeout(0.001)
+        s.settimeout(1)
+        data = s.recv(8)
+
+        s.close()
+    
+    ms_total = millis() - ms_start
+    bytes_per_sec = sent_bytes / (ms_total / 1000)
+    
+    rate_str = str(int(bytes_per_sec / 1024)) + " KiB/s";
+    print ("Sent (" + rate_str + ")")
+
+def boot_remote_file(fpath):
+    ms_start = millis()
+    
+    sent_bytes = 0
+    
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+
+        payload = struct.pack("<4sLL64sL", b'SLTC', 4+64+4, RPC_CMD_BOOTFILE, fpath.encode("utf-8"), 1)
+        
+        sent_bytes = len(payload)
+        
+        s.settimeout(10)
+        s.sendall(payload)
+        s.settimeout(1)
+        data = s.recv(8)
 
         s.close()
     
@@ -173,13 +213,15 @@ def create_remote_file(fpath, trunc):
     print ("Sent (" + rate_str + ")")
 
 def copy_file_to_remote(host_path, remote_path):
+    remote_path = remote_path.replace("sdmc:/", "sd:/")
+
     sd_path = remote_path.encode("utf-8")
     f_size = os.path.getsize(host_path)
     f = open(host_path, "rb")
     
     create_remote_file(remote_path, True)
     
-    bulk_size = 0x8000#0x5AC
+    bulk_size = 0x40000#0x5AC
     
     ms_start = millis()
     
@@ -223,9 +265,6 @@ def copy_file_to_remote(host_path, remote_path):
     
     rate_str = str(int(bytes_per_sec / 1024)) + " KiB/s";
     print ("Sent (" + rate_str + ")")
-    
-    rpc_nop()
-    rpc_nop()
 
 if len(sys.argv) < 2:
     print("Usage: " + sys.argv[0] + " [benchmark | upload]")
@@ -235,15 +274,31 @@ if len(sys.argv) < 2:
 while HOST == None:
     rpc_find_3ds()
 
-for arg in sys.argv[1:]:
+i = 1
+while True:
+    if i >= len(sys.argv):
+        break
+
+    arg = sys.argv[i]
+    i += 1
+
     if arg.lower() == "benchmark":
         benchmark()
+    elif arg.lower() == "test":
+        create_remote_file("sdmc:/asdf", 1)
     elif arg.lower() == "upload":
         copy_file_to_remote("payload.bin", "sdmc:/payload.bin")
+    elif arg.lower() == "uu":
+        copy_file_to_remote("/home/maxamillion/workspace/Universal-Updater/nds/Universal-Updater.nds", "sdmc:/Universal-Updater.nds")
+    elif arg.lower() == "bootuu":
+        boot_remote_file("sdmc:/Universal-Updater.nds")
     elif arg.lower() == "dsiup":
         #copy_file_to_remote("BOOT.NDS", "sdmc:/BOOT.NDS")
         #copy_file_to_remote("main.srldr", "sdmc:/_nds/TWiLightMenu/main.srldr")
-        copy_file_to_remote("test_app.nds", "sdmc:/_nds/TWiLightMenu/main.srldr")
+        copy_file_to_remote("test_app.nds", "sdmc:/test_app.nds")
+    elif arg.lower() == "boot": # Send Unlaunch boot params (does not reboot)
+        boot_remote_file(sys.argv[i])
+        i += 1
     elif arg.lower() == "reboot":
         rpc_simple_cmd(RPC_CMD_REBOOT)
     else:

@@ -16,8 +16,42 @@
 int lSocket;
 struct sockaddr_in sLocalAddr;
 
-void appwifi_echoserver_tick(void);
+void appwifi_echoserver(void);
 bool is_connected = false;
+
+// Unlaunch boot params need an extra 0x200 bytes
+__attribute__((section(".secure")))
+__attribute__((weak))
+const char __secure_area__[0xC00];
+
+const char* unlaunchID = "AutoLoadInfo";
+
+void unlaunchRomBoot(char* path) 
+{
+    if (strlen(path) > 0x103) {
+        path[0x102] = 0;
+    }
+
+	memcpy((u8*)0x02000800, unlaunchID, 12);
+	*(u16*)(0x0200080C) = 0x3F0;		// Unlaunch Length for CRC16 (fixed, must be 3F0h)
+	*(u16*)(0x0200080E) = 0;			// Unlaunch CRC16 (empty)
+	*(u32*)(0x02000810) = 0;			// Unlaunch Flags
+	*(u32*)(0x02000810) |= BIT(0);		// Load the title at 2000838h
+	*(u32*)(0x02000810) |= BIT(1);		// Use colors 2000814h
+	*(u16*)(0x02000814) = 0x7FFF;		// Unlaunch Upper screen BG color (0..7FFFh)
+	*(u16*)(0x02000816) = 0x7FFF;		// Unlaunch Lower screen BG color (0..7FFFh)
+	memset((u8*)0x02000818, 0, 0x20+0x208+0x1C0);		// Unlaunch Reserved (zero)
+	for (int i = 0; i < strlen(path); i++) 
+	{
+		((int16_t*)0x02000838)[i] = path[i];		// Unlaunch Device:/Path/Filename.ext (16bit Unicode,end by 0000h)
+	}
+	while (*(u16*)(0x0200080E) == 0) {	// Keep running, so that CRC16 isn't 0
+        *(u16*)(0x02000814) -= 1;
+		*(u16*)(0x0200080E) = swiCRC16(0xFFFF, (void*)0x02000810, 0x3F0);		// Unlaunch CRC16
+	}
+
+	DC_FlushRange((void*)0x02000800, 0x200);
+}
 
 void appwifi_log(const char* s)
 {
@@ -27,7 +61,7 @@ void appwifi_log(const char* s)
 void appwifi_connect(void)
 {
     rpc_init();
-    appwifi_echoserver();
+    //appwifi_echoserver();
     is_connected = true;
 }
 
@@ -122,21 +156,38 @@ int main(void) {
     }
     
     //while (!is_connected){}
-    iprintf("Starting echo server...\n");    
+    //iprintf("Starting echo server...\n");
+    
+    u32 last_addr = DSiWifi_GetIP();
+
+    int ip_draw_cnt = 0;
 
     while(1) {
         u32 addr = DSiWifi_GetIP();
         
         if (addr != 0 && addr != 0xFFFFFFFF)
-            appwifi_echoserver_tick();
+        {
+            rpc_tick();
+            //appwifi_echoserver_tick();
+        }
         
         u8 addr_bytes[4];
         
         memcpy(addr_bytes, &addr, 4);
         
-        iprintf("\x1b[s\x1b[0;0HCur IP: \x1b[36m%u.%u.%u.%u        \x1b[u\x1b[37m", addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]);
+        if (ip_draw_cnt++ > 100) {
+            int lock = enterCriticalSection();
+            iprintf("\x1b[s\x1b[0;0HCur IP: \x1b[36m%u.%u.%u.%u        \x1b[u\x1b[37m", addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]);
+            ip_draw_cnt = 0;
+            leaveCriticalSection(lock);
+        }
 
-        swiWaitForVBlank();
+        if (addr != last_addr)
+        {
+            swiWaitForVBlank();
+        }
+        
+        last_addr = addr;
         scanKeys();
         if (keysDown()&KEY_START) break;
         if (keysDown()&KEY_B) {
