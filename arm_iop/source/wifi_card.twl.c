@@ -814,6 +814,10 @@ u16 wifi_card_mbox0_readpkt(void)
 #endif
     
     u8 ack_len = read_buffer[4];
+	if (!ack_present) {
+		// ack_len can be set to 0xFF sometimes when an ack is not present, resulting in erroneous data...!
+		ack_len = 0;
+	}
     u16 len_pkt = len - ack_len;
     u16 pkt_cmd = *(u16*)&read_buffer[6];
     u8* pkt_data = &read_buffer[8];
